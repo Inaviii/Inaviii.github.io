@@ -76,7 +76,7 @@ export default function TypingTest() {
   const [fontSize, setFontSize] = useState(() => { const v = localStorage.getItem('fontSize'); return v !== null ? parseInt(v) : 36; });
   const [showScansion, setShowScansion] = useState(() => { const v = localStorage.getItem('showScansion'); return v !== null ? v === 'true' : true; });
 
-  // Save options to localStorage whenever they change
+  // save options to local storage whenever they change.
   useEffect(() => {
     localStorage.setItem('bgImage', bgImage);
     localStorage.setItem('bgOpacity', bgOpacity);
@@ -90,7 +90,7 @@ export default function TypingTest() {
   const [startTime, setStartTime] = useState(null);
   const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
 
-  // Leaderboard State
+  // leaderboard state
   const [playerName, setPlayerName] = useState('');
   const [scoreSaved, setScoreSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -202,7 +202,7 @@ export default function TypingTest() {
     let rawScansion = selectedPassage.scansion;
     const totalLines = rawLines.length;
 
-    // Detect piece change
+    // detect piece change
     if (loadedPieceId !== selectedPieceId) {
       setLoadedPieceId(selectedPieceId);
       setLineRange({ start: 1, end: totalLines, max: totalLines });
@@ -264,7 +264,7 @@ export default function TypingTest() {
     return () => clearInterval(interval);
   }, [startTime, isFinished, testMode, timeLimit]);
 
-  // Lofi Audio Control
+  // lofi audio control
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = lofiVolume;

@@ -11,7 +11,7 @@ export default function Leaderboard() {
     const fetchScores = async () => {
       try {
         const scoresRef = collection(db, "scores");
-        
+
         const categories = [
           { key: 'passage', mode: 'passage', duration: null },
           { key: 'time30', mode: 'time', duration: 30 },
@@ -21,7 +21,7 @@ export default function Leaderboard() {
 
         const results = {};
 
-        // We use Promise.all to fetch all categories in parallel
+        // use promise.all to fetch all categories in parallel
         await Promise.all(categories.map(async (cat) => {
           let q;
           if (cat.mode === 'passage') {
