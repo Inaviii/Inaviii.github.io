@@ -524,20 +524,40 @@ export default function TypingTest() {
                 {fonts.map((f) => <option key={f.name} value={f.value}>{f.name}</option>)}
               </select>
 
-              <select
-                className="bg-mt-sub-alt text-mt-sub hover:text-mt-text transition-colors duration-200 py-1 px-3 rounded-lg outline-none cursor-pointer text-xs"
-                value={bgImage}
-                onChange={(e) => setBgImage(e.target.value)}
+              <div 
+                className={`relative overflow-hidden rounded-lg transition-colors duration-200 select-none ${bgImage !== 'none' ? 'bg-mt-main/30' : 'bg-mt-sub-alt'}`}
+                onWheel={(e) => {
+                  e.stopPropagation();
+                  if (bgImage === 'none') return;
+                  const delta = e.deltaY > 0 ? -0.01 : 0.01;
+                  setBgOpacity(prev => Math.max(0, Math.min(1, prev + delta)));
+                }}
               >
-                {backgrounds.map((bg) => <option key={bg.name} value={bg.url}>{bg.name}</option>)}
-              </select>
+                {bgImage !== 'none' && (
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-mt-main z-0 pointer-events-none" 
+                    style={{ width: `${bgOpacity * 100}%` }}
+                  />
+                )}
+                <select
+                  className={`relative z-10 bg-transparent py-1 px-3 outline-none cursor-pointer text-xs font-bold w-full h-full ${bgImage !== 'none' ? 'text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+                  value={bgImage}
+                  onChange={(e) => setBgImage(e.target.value)}
+                >
+                  {backgrounds.map((bg) => (
+                    <option key={bg.name} value={bg.url} className="bg-mt-bg text-mt-text">
+                      {bg.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <button
                 onClick={(e) => { e.stopPropagation(); setLofiEnabled(!lofiEnabled); }}
                 onWheel={(e) => {
                   e.stopPropagation();
                   if (!lofiEnabled) return;
-                  const delta = e.deltaY > 0 ? -0.05 : 0.05;
+                  const delta = e.deltaY > 0 ? -0.01 : 0.01;
                   setLofiVolume(prev => Math.max(0, Math.min(1, prev + delta)));
                 }}
                 className={`relative overflow-hidden py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 select-none ${lofiEnabled ? 'text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
