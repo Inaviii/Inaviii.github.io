@@ -432,23 +432,34 @@ export default function TypingTest() {
                   <span className="text-mt-sub/30 py-2 select-none">/</span>
                   <div className="flex items-center gap-2 bg-mt-sub-alt rounded-md px-3 py-1 shrink-0">
                     <span className="text-mt-sub text-[0.65rem] font-bold uppercase tracking-widest hidden sm:inline">Lines</span>
-                    <input 
-                      type="number" min="1" max={lineRange.max} value={lineRange.start}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 1;
-                        setLineRange(prev => ({ ...prev, start: Math.min(val, prev.end) }));
-                      }}
-                      className="bg-transparent text-mt-text text-sm font-bold w-12 text-center outline-none"
-                    />
+                    
+                    <div className="flex flex-col items-center justify-center">
+                      <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, start: Math.min(lineRange.max, Math.min(prev.start + 1, prev.end)) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-end justify-center w-full select-none cursor-pointer">▲</button>
+                      <input 
+                        type="number" min="1" max={lineRange.max} value={lineRange.start}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 1;
+                          setLineRange(prev => ({ ...prev, start: Math.min(val, prev.end) }));
+                        }}
+                        className="bg-transparent text-mt-text text-sm font-bold w-12 text-center outline-none -my-[0.1rem]"
+                      />
+                      <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, start: Math.max(1, prev.start - 1) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-start justify-center w-full select-none cursor-pointer">▼</button>
+                    </div>
+
                     <span className="text-mt-sub/50">-</span>
-                    <input 
-                      type="number" min="1" max={lineRange.max} value={lineRange.end}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || lineRange.max;
-                        setLineRange(prev => ({ ...prev, end: Math.max(val, prev.start) }));
-                      }}
-                      className="bg-transparent text-mt-text text-sm font-bold w-12 text-center outline-none"
-                    />
+                    
+                    <div className="flex flex-col items-center justify-center">
+                      <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, end: Math.min(lineRange.max, prev.end + 1) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-end justify-center w-full select-none cursor-pointer">▲</button>
+                      <input 
+                        type="number" min="1" max={lineRange.max} value={lineRange.end}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || lineRange.max;
+                          setLineRange(prev => ({ ...prev, end: Math.max(val, prev.start) }));
+                        }}
+                        className="bg-transparent text-mt-text text-sm font-bold w-12 text-center outline-none -my-[0.1rem]"
+                      />
+                      <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, end: Math.max(prev.start, prev.end - 1) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-start justify-center w-full select-none cursor-pointer">▼</button>
+                    </div>
                   </div>
                 </>
               ) : (
