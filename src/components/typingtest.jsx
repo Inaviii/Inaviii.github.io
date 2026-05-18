@@ -4,16 +4,19 @@ import { db } from '../firebase';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
-  { name: "Marble Statue", url: "https://upload.wikimedia.org/wikipedia/commons/e/eb/Statue-Augustus.jpg" },
-  { name: "Roman Forum", url: "https://upload.wikimedia.org/wikipedia/commons/a/a2/Roman_Forum_pano_2.jpg" },
-  { name: "Old Manuscript", url: "https://upload.wikimedia.org/wikipedia/commons/d/d7/Vergilius_Romanus_Georgics.jpg" },
-  { name: "Candlelit Library", url: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Strahov_Library_Philosophical_Hall.jpg" }
+  { name: "Marble Statue", url: "/bg-statue.jpg" },
+  { name: "Roman Forum", url: "/bg-forum.jpg" },
+  { name: "Old Manuscript", url: "/bg-manuscript.jpg" },
+  { name: "Candlelit Library", url: "/bg-library.jpg" }
 ];
 
 const fonts = [
   { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
   { name: "Courier Prime", value: '"Courier Prime", monospace' },
   { name: "Syne Mono", value: '"Syne Mono", monospace' },
+  { name: "Courier New", value: '"Courier New", Courier, monospace' },
+  { name: "Consolas", value: 'Consolas, monospace' },
+  { name: "Lucida Console", value: '"Lucida Console", Monaco, monospace' },
 ];
 
 const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
