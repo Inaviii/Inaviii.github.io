@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code&family=JetBrains+Mono&family=Roboto+Mono&family=Space+Mono&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-mt-bg: #323437;
+  --color-mt-main: #e2b714;
+  --color-mt-caret: #e2b714;
+  --color-mt-sub: #646669;
+  --color-mt-sub-alt: #2c2e31;
+  --color-mt-text: #d1d0c5;
+  --color-mt-error: #ca4754;
+  --color-mt-error-extra: #7e2a33;
+  
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
+}

@@ -1,0 +1,584 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+
+const backgrounds = [
+  { name: "None (Solid Dark)", url: "none" },
+  { name: "Rainy Window", url: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
+  { name: "Deep Forest", url: "https://images.unsplash.com/photo-1448375240586-882707db888b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
+  { name: "Night Sky", url: "https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
+  { name: "Ocean Waves", url: "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" }
+];
+
+const fonts = [
+  { name: "Roboto Mono", value: '"Roboto Mono", monospace' },
+  { name: "JetBrains Mono", value: '"JetBrains Mono", monospace' },
+  { name: "Fira Code", value: '"Fira Code", monospace' },
+  { name: "Space Mono", value: '"Space Mono", monospace' },
+  { name: "Courier New", value: '"Courier New", monospace' }
+];
+
+const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const getVowelIndices = (word) => {
+  const normalized = word.toLowerCase();
+  const vowels = ['a', 'e', 'i', 'o', 'u', 'y', 'ā', 'ē', 'ī', 'ō', 'ū'];
+  const indices = [];
+
+  for (let i = 0; i < normalized.length; i++) {
+    if (vowels.includes(normalized[i])) {
+      if ((normalized[i] === 'u' || normalized[i] === 'ū') && i > 0 && normalized[i - 1] === 'q') continue;
+      if (i > 0 && indices.includes(i - 1)) {
+        const pair = normalized[i - 1] + normalized[i];
+        if (['ae', 'au', 'oe', 'ei', 'eu', 'ui'].includes(pair)) continue;
+      }
+      indices.push(i);
+    }
+  }
+  return indices;
+};
+
+export default function TypingTest() {
+  // lazy loading architecture state
+  const [libraryIndex, setLibraryIndex] = useState(null);
+  const [activeAuthorData, setActiveAuthorData] = useState([]);
+  const [isAppLoading, setIsAppLoading] = useState(true);
+  const [isFetchingAuthor, setIsFetchingAuthor] = useState(false);
+
+  // time attack mode state
+  const [testMode, setTestMode] = useState('passage'); // 'passage' or 'time'
+  const [timeLimit, setTimeLimit] = useState(60);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+
+  // cascading selection state
+  const [selectedAuthor, setSelectedAuthor] = useState('');
+  const [selectedWork, setSelectedWork] = useState('');
+  const [selectedPieceId, setSelectedPieceId] = useState('');
+
+  // engine state
+  const [lines, setLines] = useState([]);
+  const [wordIndex, setWordIndex] = useState(0);
+  const [currentInput, setCurrentInput] = useState('');
+  const [typedHistory, setTypedHistory] = useState([]);
+  const [isFinished, setIsFinished] = useState(false);
+
+  // options &analytics state
+  const [bgImage, setBgImage] = useState(backgrounds[0].url);
+  const [bgOpacity, setBgOpacity] = useState(0.15);
+  const [volume, setVolume] = useState(0.2);
+  const [fontFamily, setFontFamily] = useState(fonts[0].value);
+  const [fontSize, setFontSize] = useState(24);
+  const [showScansion, setShowScansion] = useState(true);
+  const [startTime, setStartTime] = useState(null);
+  const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
+
+  const inputRef = useRef(null);
+
+  // fetch index on mount
+  useEffect(() => {
+    // cache buster
+    fetch(`/library/index.json?nocache=${new Date().getTime()}`)
+      .then(res => res.json())
+      .then(indexData => {
+        setLibraryIndex(indexData);
+
+        const firstAuthor = Object.keys(indexData)[0];
+        const firstWork = Object.keys(indexData[firstAuthor])[0];
+        const firstPieceId = indexData[firstAuthor][firstWork][0].id;
+
+        setSelectedAuthor(firstAuthor);
+        setSelectedWork(firstWork);
+        setSelectedPieceId(firstPieceId);
+
+        // trigger the fetch for the first author
+        fetchAuthorData(firstAuthor);
+      });
+  }, []);
+
+  // helper to fetch heavy author data lazily
+  const fetchAuthorData = (authorName) => {
+    setIsFetchingAuthor(true);
+    const safeFilename = authorName.toLowerCase().replace(/ /g, "_") + ".json";
+
+    // cache buster
+    fetch(`/library/${safeFilename}?nocache=${new Date().getTime()}`)
+      .then(res => res.json())
+      .then(data => {
+        setActiveAuthorData(data);
+        setIsFetchingAuthor(false);
+        setIsAppLoading(false);
+      });
+  };
+
+  // handle author change
+  const handleAuthorChange = (e) => {
+    const newAuthor = e.target.value;
+    setSelectedAuthor(newAuthor);
+
+    const firstWork = Object.keys(libraryIndex[newAuthor])[0];
+    setSelectedWork(firstWork);
+    setSelectedPieceId(libraryIndex[newAuthor][firstWork][0].id);
+
+    fetchAuthorData(newAuthor);
+  };
+
+  // handle work change
+  const handleWorkChange = (e) => {
+    const newWork = e.target.value;
+    setSelectedWork(newWork);
+    setSelectedPieceId(libraryIndex[selectedAuthor][newWork][0].id);
+  };
+
+  const loadRandomTimeAttack = () => {
+    if (!libraryIndex) return;
+    setIsFetchingAuthor(true);
+
+    const authors = Object.keys(libraryIndex);
+    const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
+    const works = Object.keys(libraryIndex[randomAuthor]);
+    const randomWork = works[Math.floor(Math.random() * works.length)];
+    const pieces = libraryIndex[randomAuthor][randomWork];
+    const randomPiece = pieces[Math.floor(Math.random() * pieces.length)];
+
+    setSelectedAuthor(randomAuthor);
+    setSelectedWork(randomWork);
+    setSelectedPieceId(randomPiece.id);
+
+    const safeFilename = randomAuthor.toLowerCase().replace(/ /g, "_") + ".json";
+    fetch(`/library/${safeFilename}?nocache=${new Date().getTime()}`)
+      .then(res => res.json())
+      .then(data => {
+        setActiveAuthorData(data);
+        setIsFetchingAuthor(false);
+      });
+  };
+
+  // reset engine helper
+  const resetTest = () => {
+    setWordIndex(0);
+    setCurrentInput('');
+    setTypedHistory([]);
+    setStartTime(null);
+    setStats({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
+    setIsFinished(false);
+    setTimeRemaining(testMode === 'time' ? timeLimit : null);
+    if (inputRef.current) inputRef.current.focus();
+  };
+
+  // parse text when piece changes
+  useEffect(() => {
+    if (isFetchingAuthor || !activeAuthorData.length) return;
+
+    const selectedPassage = activeAuthorData.find(p => p.id === selectedPieceId);
+    if (!selectedPassage) return;
+
+    let rawLines = selectedPassage.text.split('\n');
+    let rawScansion = selectedPassage.scansion;
+
+    if (testMode === 'time') {
+      const minLinesNeeded = 20;
+      if (rawLines.length > minLinesNeeded) {
+        const maxStartIndex = rawLines.length - minLinesNeeded;
+        const startIndex = Math.floor(Math.random() * (maxStartIndex + 1));
+        rawLines = rawLines.slice(startIndex);
+        if (rawScansion) rawScansion = rawScansion.slice(startIndex);
+      }
+    }
+
+    let globalIdx = 0;
+    const parsedLines = rawLines.map((lineStr, lIdx) => {
+      const words = lineStr.trim().split(' ').filter(w => w.length > 0).map(word => {
+        const wordObj = { word, globalIdx };
+        globalIdx++;
+        return wordObj;
+      });
+      return { words, scansion: rawScansion ? rawScansion[lIdx] : null };
+    });
+
+    setLines(parsedLines);
+    resetTest();
+  }, [selectedPieceId, activeAuthorData, isFetchingAuthor, testMode]);
+
+  // live timer
+  useEffect(() => {
+    if (!startTime || isFinished) return;
+    const interval = setInterval(() => {
+      const timeElapsedMs = Date.now() - startTime;
+      const timeElapsedMin = timeElapsedMs / 60000;
+
+      setStats(prev => ({
+        ...prev,
+        wpm: Math.max(0, Math.round((prev.correctKeys / 5) / timeElapsedMin)),
+        acc: prev.totalKeys > 0 ? Math.round((prev.correctKeys / prev.totalKeys) * 100) : 100
+      }));
+
+      if (testMode === 'time') {
+        const remaining = Math.max(0, timeLimit - Math.floor(timeElapsedMs / 1000));
+        setTimeRemaining(remaining);
+        if (remaining <= 0) {
+          setIsFinished(true);
+        }
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [startTime, isFinished, testMode, timeLimit]);
+
+  const playClickSound = () => {
+    if (volume === 0) return;
+    const click = new Audio('/click.mp3');
+    click.volume = volume;
+    click.playbackRate = 0.95 + Math.random() * 0.1;
+    click.preservesPitch = false;
+    click.play().catch(() => { });
+  };
+
+  const handleKeyDown = (e) => {
+    if (isFinished || isFetchingAuthor || isAppLoading) return;
+
+    if (e.key.length === 1 || e.key === 'Backspace' || e.key === ' ') playClickSound();
+
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (currentInput.trim().length > 0) {
+        const flatWords = lines.flatMap(l => l.words);
+        if (wordIndex === flatWords.length - 1) setIsFinished(true);
+
+        setTypedHistory([...typedHistory, currentInput.trim()]);
+        setWordIndex((prev) => prev + 1);
+        setCurrentInput('');
+      }
+    } else if (e.key === 'Backspace') {
+      if (currentInput === '' && wordIndex > 0) {
+        e.preventDefault();
+        const newHistory = [...typedHistory];
+        const previousInput = newHistory.pop();
+        setTypedHistory(newHistory);
+        setWordIndex((prev) => prev - 1);
+        setCurrentInput(previousInput);
+      }
+    } else if (e.key.length === 1) {
+      if (!startTime) setStartTime(Date.now());
+
+      const flatWords = lines.flatMap(l => l.words);
+      const activeWordObj = flatWords.find(w => w.globalIdx === wordIndex);
+
+      if (activeWordObj) {
+        const expectedWord = activeWordObj.word;
+        const normalizedExpected = expectedWord.split('').map(normalizeChar).join('');
+        const expectedChar = normalizeChar(expectedWord[currentInput.length] || '');
+        const isCorrect = e.key === expectedChar;
+        const nextInput = currentInput + e.key;
+
+        setStats(prev => ({
+          ...prev,
+          totalKeys: prev.totalKeys + 1,
+          correctKeys: prev.correctKeys + (isCorrect ? 1 : 0)
+        }));
+
+        if (wordIndex === flatWords.length - 1 && nextInput === normalizedExpected) setIsFinished(true);
+      }
+    }
+  };
+
+  const focusInput = (e) => {
+    if (e.target.tagName === 'SELECT' || e.target.type === 'range' || e.target.tagName === 'BUTTON' || isFinished) return;
+    if (inputRef.current) inputRef.current.focus();
+  };
+
+  if (isAppLoading || !libraryIndex) {
+    return <div className="min-h-screen bg-mt-bg text-mt-main flex items-center justify-center font-bold text-2xl animate-pulse">Loading Library Index...</div>;
+  }
+
+  // virtualization math RAHHHHHHHHH
+  const activeLineIndex = lines.findIndex(line => line.words.some(w => w.globalIdx === wordIndex));
+  const safeActiveLineIndex = activeLineIndex !== -1 ? activeLineIndex : (lines.length > 0 ? lines.length - 1 : 0);
+  const scrollOffset = safeActiveLineIndex > 0 ? safeActiveLineIndex - 1 : 0;
+
+  const lineHeightPx = fontSize * 2.8;
+  const viewportHeightPx = lineHeightPx * 4;
+  const translateY = `-${scrollOffset * lineHeightPx}px`;
+
+  const renderStart = Math.max(0, safeActiveLineIndex - 2);
+  const renderEnd = Math.min(lines.length, safeActiveLineIndex + 4);
+  const visibleLines = lines.slice(renderStart, renderEnd);
+
+  // menu arrays
+  const uniqueAuthors = Object.keys(libraryIndex);
+  const availableWorks = Object.keys(libraryIndex[selectedAuthor]);
+  const availablePieces = libraryIndex[selectedAuthor][selectedWork];
+
+  return (
+    <div
+      className="min-h-screen bg-mt-bg text-mt-text flex flex-col items-center justify-center p-8 tracking-wide relative"
+      onClick={focusInput}
+      style={{ fontFamily: fontFamily }}
+    >
+      {bgImage !== 'none' && (
+        <div
+          className="fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-opacity duration-300"
+          style={{ backgroundImage: `url(${bgImage})`, opacity: bgOpacity }}
+        />
+      )}
+
+      <div className="relative z-10 w-full max-w-5xl flex flex-col items-center">
+
+        {/*header and controls*/}
+        <div className="w-full flex justify-between items-start mb-12">
+
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-bold text-mt-text tracking-tighter mt-1">
+              latin<span className="text-mt-main">type</span>
+            </h1>
+
+            <div className={`flex gap-6 mt-6 transition-opacity duration-500 ${startTime ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="flex flex-col">
+                <span className="text-[0.65rem] uppercase tracking-widest text-mt-sub/70 font-bold mb-1">wpm</span>
+                <span className="text-4xl font-light text-mt-text leading-none">{stats.wpm}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[0.65rem] uppercase tracking-widest text-mt-sub/70 font-bold mb-1">acc</span>
+                <span className="text-4xl font-light text-mt-text leading-none">{stats.acc}%</span>
+              </div>
+              {testMode === 'time' && (
+                <div className="flex flex-col">
+                  <span className="text-[0.65rem] uppercase tracking-widest text-mt-main/70 font-bold mb-1">time</span>
+                  <span className={`text-4xl font-light leading-none ${timeRemaining <= 10 ? 'text-mt-error animate-pulse' : 'text-mt-main'}`}>
+                    {timeRemaining !== null ? timeRemaining : timeLimit}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-3">
+
+            {/*mode toggle*/}
+            <div className="flex bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg mb-2 self-end">
+              <button
+                onClick={(e) => { e.stopPropagation(); setTestMode('passage'); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'passage' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Passage
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setTestMode('time'); loadRandomTimeAttack(); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'time' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Time Attack
+              </button>
+            </div>
+
+            {/*navigation*/}
+            <div className="flex gap-3 bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg justify-end w-full">
+              {testMode === 'passage' ? (
+                <>
+                  <select
+                    className="bg-transparent text-mt-main hover:text-mt-text transition-colors duration-200 py-2 px-3 outline-none cursor-pointer text-sm font-bold max-w-35 truncate"
+                    value={selectedAuthor}
+                    onChange={handleAuthorChange}
+                  >
+                    {uniqueAuthors.map((author) => <option key={author} value={author} className="bg-mt-bg text-mt-text">{author}</option>)}
+                  </select>
+
+                  <span className="text-mt-sub/30 py-2 select-none">/</span>
+
+                  <select
+                    className="bg-transparent text-mt-text hover:text-mt-sub transition-colors duration-200 py-2 px-3 outline-none cursor-pointer text-sm font-bold max-w-45 truncate"
+                    value={selectedWork}
+                    onChange={handleWorkChange}
+                  >
+                    {availableWorks.map((work) => <option key={work} value={work} className="bg-mt-bg text-mt-text">{work}</option>)}
+                  </select>
+
+                  {/*poem/book section */}
+                  {availablePieces.length > 1 && (
+                    <>
+                      <span className="text-mt-sub/30 py-2 select-none">/</span>
+                      <select
+                        className="bg-mt-sub-alt text-mt-text hover:text-mt-main transition-colors duration-200 py-2 px-4 rounded-md outline-none cursor-pointer text-sm max-w-50 truncate"
+                        value={selectedPieceId}
+                        onChange={(e) => setSelectedPieceId(e.target.value)}
+                      >
+                        {availablePieces.map((piece) => <option key={piece.id} value={piece.id} className="bg-mt-bg text-mt-text">{piece.piece}</option>)}
+                      </select>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <select
+                    className="bg-transparent text-mt-main hover:text-mt-text transition-colors duration-200 py-2 px-3 outline-none cursor-pointer text-sm font-bold"
+                    value={timeLimit}
+                    onChange={(e) => { setTimeLimit(parseInt(e.target.value)); setTimeRemaining(parseInt(e.target.value)); }}
+                  >
+                    <option value={30} className="bg-mt-bg text-mt-text">30s Time Attack</option>
+                    <option value={60} className="bg-mt-bg text-mt-text">60s Time Attack</option>
+                    <option value={120} className="bg-mt-bg text-mt-text">120s Time Attack</option>
+                  </select>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); loadRandomTimeAttack(); }}
+                    className="bg-mt-sub-alt text-mt-text hover:text-mt-main transition-colors duration-200 py-2 px-4 rounded-md text-sm cursor-pointer font-bold"
+                  >
+                    🎲 Roll New Text
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/*customization nav*/}
+            <div className="flex gap-3">
+              <select
+                className="bg-mt-sub-alt text-mt-sub hover:text-mt-text transition-colors duration-200 py-1 px-3 rounded-lg outline-none cursor-pointer text-xs"
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+              >
+                {fonts.map((f) => <option key={f.name} value={f.value}>{f.name}</option>)}
+              </select>
+
+              <select
+                className="bg-mt-sub-alt text-mt-sub hover:text-mt-text transition-colors duration-200 py-1 px-3 rounded-lg outline-none cursor-pointer text-xs"
+                value={bgImage}
+                onChange={(e) => setBgImage(e.target.value)}
+              >
+                {backgrounds.map((bg) => <option key={bg.name} value={bg.url}>{bg.name}</option>)}
+              </select>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowScansion(!showScansion); }}
+                className={`py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 ${showScansion ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'
+                  }`}
+              >
+                Meter: {showScansion ? 'ON' : 'OFF'}
+              </button>
+
+              <div className="flex items-center gap-2 bg-mt-sub-alt py-1 px-3 rounded-lg">
+                <span className="text-mt-sub text-[0.65rem] uppercase">Size</span>
+                <input
+                  type="range" min="16" max="36" step="2"
+                  value={fontSize}
+                  onChange={(e) => setFontSize(parseInt(e.target.value))}
+                  className="w-16 accent-mt-main cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="text"
+          className="opacity-0 absolute w-0 h-0"
+          value={currentInput}
+          onChange={(e) => setCurrentInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          autoFocus
+        />
+
+        {/* viewport */}
+        <div
+          className="relative overflow-hidden w-full select-none mt-8 pt-6 rounded-lg"
+          style={{ height: `${viewportHeightPx + 24}px`, fontSize: `${fontSize}px` }}
+        >
+          {/*loading overlay*/}
+          <div className={`absolute inset-0 z-40 flex items-center justify-center bg-mt-bg/50 backdrop-blur-sm transition-opacity duration-300 ${isFetchingAuthor ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <span className="text-mt-main animate-pulse font-bold tracking-widest uppercase">Fetching Scrolls...</span>
+          </div>
+
+          {/*completion screen*/}
+          <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-mt-bg/80 backdrop-blur-md transition-opacity duration-700 ${isFinished ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <h2 className="text-3xl font-bold text-mt-main mb-2">
+              {testMode === 'time' ? (timeRemaining <= 0 ? "Time's Up!" : "Passage Completed") : "Passage Completed"}
+            </h2>
+            <div className="flex gap-12 my-8">
+              <div className="flex flex-col items-center">
+                <span className="text-sm uppercase tracking-widest text-mt-sub font-bold">WPM</span>
+                <span className="text-6xl font-light text-mt-text">{stats.wpm}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-sm uppercase tracking-widest text-mt-sub font-bold">Accuracy</span>
+                <span className="text-6xl font-light text-mt-text">{stats.acc}%</span>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <button className="px-8 py-3 bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg transition-colors duration-200 rounded-lg font-bold text-lg" onClick={(e) => { e.stopPropagation(); resetTest(); }}>
+                Restart Test
+              </button>
+              {testMode === 'time' && (
+                <button className="px-8 py-3 bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg transition-colors duration-200 rounded-lg font-bold text-lg" onClick={(e) => { e.stopPropagation(); loadRandomTimeAttack(); }}>
+                  Next Random
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div
+            className={`absolute top-0 left-0 w-full transition-all duration-500 ease-in-out ${(isFinished || isFetchingAuthor) ? 'blur-sm opacity-30' : ''}`}
+            style={{ transform: `translateY(${translateY})`, height: `${lines.length * lineHeightPx}px` }}
+          >
+            {visibleLines.map((lineObj, relativeIdx) => {
+              const lIdx = renderStart + relativeIdx;
+              const distance = lIdx - safeActiveLineIndex;
+
+              let lineOpacity = "opacity-0";
+              if (distance === -1) lineOpacity = "opacity-30";
+              else if (distance === 0) lineOpacity = "opacity-100";
+              else if (distance === 1) lineOpacity = "opacity-70";
+              else if (distance === 2) lineOpacity = "opacity-30";
+
+              return (
+                <div key={lIdx} className={`absolute left-0 w-full flex items-center flex-wrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
+                  {lineObj.words.map((wObj, wIdx) => {
+                    const { word, globalIdx } = wObj;
+                    const isCurrentWord = globalIdx === wordIndex;
+                    const isPastWord = globalIdx < wordIndex;
+                    const userTypedWord = isPastWord ? typedHistory[globalIdx] : (isCurrentWord ? currentInput : '');
+                    const vowelIndices = getVowelIndices(word);
+                    const wordScansion = lineObj.scansion?.[wIdx] || "";
+                    const nextWordScansion = lineObj.scansion?.[wIdx + 1] || "";
+                    const doesElideForward = wordScansion.endsWith(' ') || nextWordScansion.startsWith(' ');
+
+                    return (
+                      <div key={globalIdx} className="inline-block mr-4 relative">
+                        {showScansion && doesElideForward && distance === 0 && (
+                          <svg className="absolute bottom-[-0.35em] right-[-0.8em] w-[1.2em] h-[0.6em] pointer-events-none text-mt-sub/50 z-0" viewBox="0 0 100 50" preserveAspectRatio="none">
+                            <path d="M 10 15 Q 50 45 90 15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+                          </svg>
+                        )}
+                        {word.split('').map((char, cIdx) => {
+                          let charColor = 'text-mt-sub relative z-10';
+                          const expectedChar = normalizeChar(char);
+                          if (isPastWord || (isCurrentWord && cIdx < userTypedWord.length)) {
+                            charColor = userTypedWord[cIdx] === expectedChar ? 'text-mt-text shadow-[0_0_8px_rgba(255,255,255,0.1)] relative z-10' : 'text-mt-error relative z-10';
+                          }
+                          const vowelSignIdx = vowelIndices.indexOf(cIdx);
+                          const symbol = vowelSignIdx !== -1 ? wordScansion[vowelSignIdx] : null;
+
+                          return (
+                            <span key={cIdx} className="relative inline-block">
+                              {showScansion && distance === 0 && symbol && symbol !== ' ' && (
+                                <span className="absolute top-[-0.7em] left-1/2 -translate-x-1/2 text-[0.65em] text-mt-main/80 font-bold select-none leading-none">{symbol}</span>
+                              )}
+                              <span className={`${charColor} transition-colors duration-100 drop-shadow-md`}>{char}</span>
+                            </span>
+                          );
+                        })}
+                        {userTypedWord.length > word.length && (
+                          <span className="text-mt-error-extra opacity-80 relative z-10">{userTypedWord.slice(word.length)}</span>
+                        )}
+                        {isCurrentWord && (
+                          <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '0.15em', height: '1.1em', left: `calc(${Math.min(currentInput.length, word.length)}ch + ${Math.min(currentInput.length, word.length) * 0.025}em)`, transition: 'left 0.1s ease-out' }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-16 text-sm text-mt-sub bg-mt-bg/50 px-4 py-2 rounded-lg backdrop-blur-sm">
+          Click anywhere to focus. Press <kbd className="bg-mt-sub-alt text-mt-text px-2 py-1 rounded mx-1">Space</kbd> to advance.
+        </div>
+      </div>
+    </div>
+  );
+}
