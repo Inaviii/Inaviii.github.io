@@ -4,10 +4,10 @@ import { db } from '../firebase';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
-  { name: "Marble Statue", url: "/bg-statue.jpg" },
-  { name: "Roman Forum", url: "/bg-forum.jpg" },
-  { name: "Old Manuscript", url: "/bg-manuscript.jpg" },
-  { name: "Candlelit Library", url: "/bg-library.jpg" }
+  { name: "Marble", url: "/bg-statue.jpg" },
+  { name: "Colliseum", url: "/bg-forum.jpg" },
+  { name: "Papyrus", url: "/bg-manuscript.jpg" },
+  { name: "Library", url: "/bg-library.jpg" }
 ];
 
 const fonts = [
@@ -194,7 +194,7 @@ export default function TypingTest() {
     if (loadedPieceId !== selectedPieceId) {
       setLoadedPieceId(selectedPieceId);
       setLineRange({ start: 1, end: totalLines, max: totalLines });
-      return; 
+      return;
     }
 
     if (testMode === 'time') {
@@ -449,8 +449,8 @@ export default function TypingTest() {
                   <span className="text-mt-sub/30 py-2 select-none">/</span>
                   <div className="flex items-center gap-2 bg-mt-sub-alt rounded-md px-3 py-1 shrink-0">
                     <span className="text-mt-sub text-[0.65rem] font-bold uppercase tracking-widest hidden sm:inline">Lines</span>
-                    
-                    <div 
+
+                    <div
                       className="flex flex-col items-center justify-center"
                       onWheel={(e) => {
                         const delta = e.deltaY > 0 ? -1 : 1;
@@ -458,7 +458,7 @@ export default function TypingTest() {
                       }}
                     >
                       <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, start: Math.min(lineRange.max, Math.min(prev.start + 1, prev.end)) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-end justify-center w-full select-none cursor-pointer">▲</button>
-                      <input 
+                      <input
                         type="number" min="1" max={lineRange.max} value={lineRange.start}
                         onChange={(e) => {
                           const val = parseInt(e.target.value) || 1;
@@ -470,8 +470,8 @@ export default function TypingTest() {
                     </div>
 
                     <span className="text-mt-sub/50">-</span>
-                    
-                    <div 
+
+                    <div
                       className="flex flex-col items-center justify-center"
                       onWheel={(e) => {
                         const delta = e.deltaY > 0 ? -1 : 1;
@@ -479,7 +479,7 @@ export default function TypingTest() {
                       }}
                     >
                       <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, end: Math.min(lineRange.max, prev.end + 1) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-end justify-center w-full select-none cursor-pointer">▲</button>
-                      <input 
+                      <input
                         type="number" min="1" max={lineRange.max} value={lineRange.end}
                         onChange={(e) => {
                           const val = parseInt(e.target.value) || lineRange.max;
@@ -527,7 +527,7 @@ export default function TypingTest() {
                 {fonts.map((f) => <option key={f.name} value={f.value}>{f.name}</option>)}
               </select>
 
-              <div 
+              <div
                 className={`relative overflow-hidden rounded-lg transition-colors duration-200 select-none ${bgImage !== 'none' ? 'bg-mt-main/30' : 'bg-mt-sub-alt'}`}
                 onWheel={(e) => {
                   e.stopPropagation();
@@ -537,8 +537,8 @@ export default function TypingTest() {
                 }}
               >
                 {bgImage !== 'none' && (
-                  <div 
-                    className="absolute inset-y-0 left-0 bg-mt-main z-0 pointer-events-none" 
+                  <div
+                    className="absolute inset-y-0 left-0 bg-mt-main z-0 pointer-events-none"
                     style={{ width: `${bgOpacity * 100}%` }}
                   />
                 )}
@@ -566,8 +566,8 @@ export default function TypingTest() {
                 className={`relative overflow-hidden py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 select-none ${lofiEnabled ? 'text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
               >
                 {lofiEnabled && (
-                  <div 
-                    className="absolute inset-y-0 left-0 bg-mt-main z-0" 
+                  <div
+                    className="absolute inset-y-0 left-0 bg-mt-main z-0"
                     style={{ width: `${lofiVolume * 100}%` }}
                   />
                 )}
@@ -639,18 +639,18 @@ export default function TypingTest() {
                 <span className="text-6xl font-light text-mt-text">{stats.acc}%</span>
               </div>
             </div>
-            
+
             <div className="flex flex-col items-center mb-8 w-full max-w-sm">
-              <input 
-                type="text" 
-                placeholder="Enter name for leaderboard..." 
-                className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center" 
+              <input
+                type="text"
+                placeholder="Enter name for leaderboard..."
+                className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center"
                 maxLength={20}
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 disabled={scoreSaved || isSaving}
               />
-              <button 
+              <button
                 className={`w-full font-bold py-2 rounded-lg transition-colors ${scoreSaved ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-main text-mt-bg hover:bg-opacity-80'}`}
                 disabled={scoreSaved || isSaving}
                 onClick={async (e) => {
