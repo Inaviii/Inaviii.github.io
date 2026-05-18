@@ -54,6 +54,8 @@ export default function TypingTest() {
   const [selectedAuthor, setSelectedAuthor] = useState('');
   const [selectedWork, setSelectedWork] = useState('');
   const [selectedPieceId, setSelectedPieceId] = useState('');
+  const [loadedPieceId, setLoadedPieceId] = useState(null);
+  const [lineRange, setLineRange] = useState({ start: 1, end: 1, max: 1 });
 
   // engine state
   const [lines, setLines] = useState([]);
@@ -182,6 +184,14 @@ export default function TypingTest() {
 
     let rawLines = selectedPassage.text.split('\n');
     let rawScansion = selectedPassage.scansion;
+    const totalLines = rawLines.length;
+
+    // Detect piece change
+    if (loadedPieceId !== selectedPieceId) {
+      setLoadedPieceId(selectedPieceId);
+      setLineRange({ start: 1, end: totalLines, max: totalLines });
+      return; 
+    }
 
     if (testMode === 'time') {
       const minLinesNeeded = 20;
@@ -190,6 +200,13 @@ export default function TypingTest() {
         const startIndex = Math.floor(Math.random() * (maxStartIndex + 1));
         rawLines = rawLines.slice(startIndex);
         if (rawScansion) rawScansion = rawScansion.slice(startIndex);
+      }
+    } else if (testMode === 'passage') {
+      const sIndex = Math.max(0, lineRange.start - 1);
+      const eIndex = Math.min(totalLines, lineRange.end);
+      if (eIndex > sIndex) {
+        rawLines = rawLines.slice(sIndex, eIndex);
+        if (rawScansion) rawScansion = rawScansion.slice(sIndex, eIndex);
       }
     }
 
@@ -205,7 +222,7 @@ export default function TypingTest() {
 
     setLines(parsedLines);
     resetTest();
-  }, [selectedPieceId, activeAuthorData, isFetchingAuthor, testMode]);
+  }, [selectedPieceId, activeAuthorData, isFetchingAuthor, testMode, loadedPieceId, lineRange.start, lineRange.end]);
 
   // live timer
   useEffect(() => {
@@ -328,7 +345,7 @@ export default function TypingTest() {
         />
       )}
 
-      <div className="relative z-10 w-full max-w-5xl flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-[1600px] flex flex-col items-center px-4">
 
         {/*header and controls*/}
         <div className="w-full flex justify-between items-start mb-12">
@@ -411,9 +428,36 @@ export default function TypingTest() {
                       </select>
                     </>
                   )}
+
+                  <span className="text-mt-sub/30 py-2 select-none">/</span>
+                  <div className="flex items-center gap-2 bg-mt-sub-alt rounded-md px-3 py-1 shrink-0">
+                    <span className="text-mt-sub text-[0.65rem] font-bold uppercase tracking-widest hidden sm:inline">Lines</span>
+                    <input 
+                      type="number" min="1" max={lineRange.max} value={lineRange.start}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 1;
+                        setLineRange(prev => ({ ...prev, start: Math.min(val, prev.end) }));
+                      }}
+                      className="bg-transparent text-mt-text text-sm font-bold w-12 text-center outline-none"
+                    />
+                    <span className="text-mt-sub/50">-</span>
+                    <input 
+                      type="number" min="1" max={lineRange.max} value={lineRange.end}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || lineRange.max;
+                        setLineRange(prev => ({ ...prev, end: Math.max(val, prev.start) }));
+                      }}
+                      className="bg-transparent text-mt-text text-sm font-bold w-12 text-center outline-none"
+                    />
+                  </div>
                 </>
               ) : (
                 <>
+                  <div className="flex items-center mr-4 hidden md:flex">
+                    <span className="text-mt-sub text-xs uppercase tracking-widest truncate max-w-[250px] text-right">
+                      {selectedAuthor} - {selectedWork}
+                    </span>
+                  </div>
                   <select
                     className="bg-transparent text-mt-main hover:text-mt-text transition-colors duration-200 py-2 px-3 outline-none cursor-pointer text-sm font-bold"
                     value={timeLimit}
@@ -574,7 +618,7 @@ export default function TypingTest() {
               else if (distance === 2) lineOpacity = "opacity-30";
 
               return (
-                <div key={lIdx} className={`absolute left-0 w-full flex items-center flex-wrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
+                <div key={lIdx} className={`absolute left-0 w-full flex items-center flex-nowrap whitespace-nowrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
                   {lineObj.words.map((wObj, wIdx) => {
                     const { word, globalIdx } = wObj;
                     const isCurrentWord = globalIdx === wordIndex;
