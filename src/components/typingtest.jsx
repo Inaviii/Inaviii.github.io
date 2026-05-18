@@ -65,16 +65,28 @@ export default function TypingTest() {
   const [typedHistory, setTypedHistory] = useState([]);
   const [isFinished, setIsFinished] = useState(false);
 
-  // options &analytics state
-  const [bgImage, setBgImage] = useState(backgrounds[0].url);
-  const [bgOpacity, setBgOpacity] = useState(0.15);
-  const [volume, setVolume] = useState(0.2);
-  const [lofiEnabled, setLofiEnabled] = useState(false);
-  const [lofiVolume, setLofiVolume] = useState(0.5);
+  // options & analytics state
+  const [bgImage, setBgImage] = useState(() => localStorage.getItem('bgImage') || backgrounds[1].url);
+  const [bgOpacity, setBgOpacity] = useState(() => { const v = localStorage.getItem('bgOpacity'); return v !== null ? parseFloat(v) : 0.15; });
+  const [volume, setVolume] = useState(() => { const v = localStorage.getItem('volume'); return v !== null ? parseFloat(v) : 0.2; });
+  const [lofiEnabled, setLofiEnabled] = useState(() => localStorage.getItem('lofiEnabled') === 'true');
+  const [lofiVolume, setLofiVolume] = useState(() => { const v = localStorage.getItem('lofiVolume'); return v !== null ? parseFloat(v) : 0.5; });
   const audioRef = useRef(null);
-  const [fontFamily, setFontFamily] = useState(fonts[0].value);
-  const [fontSize, setFontSize] = useState(24);
-  const [showScansion, setShowScansion] = useState(true);
+  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('fontFamily') || fonts.find(f => f.name === 'Syne Mono')?.value || fonts[0].value);
+  const [fontSize, setFontSize] = useState(() => { const v = localStorage.getItem('fontSize'); return v !== null ? parseInt(v) : 36; });
+  const [showScansion, setShowScansion] = useState(() => { const v = localStorage.getItem('showScansion'); return v !== null ? v === 'true' : true; });
+
+  // Save options to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('bgImage', bgImage);
+    localStorage.setItem('bgOpacity', bgOpacity);
+    localStorage.setItem('volume', volume);
+    localStorage.setItem('lofiEnabled', lofiEnabled);
+    localStorage.setItem('lofiVolume', lofiVolume);
+    localStorage.setItem('fontFamily', fontFamily);
+    localStorage.setItem('fontSize', fontSize);
+    localStorage.setItem('showScansion', showScansion);
+  }, [bgImage, bgOpacity, volume, lofiEnabled, lofiVolume, fontFamily, fontSize, showScansion]);
   const [startTime, setStartTime] = useState(null);
   const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
 
