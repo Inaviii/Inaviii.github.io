@@ -4,10 +4,10 @@ import { db } from '../firebase';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
-  { name: "Marble Statue", url: "https://images.unsplash.com/photo-1549480017-d76466a4b7e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
-  { name: "Roman Forum", url: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
-  { name: "Old Manuscript", url: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
-  { name: "Candlelit Library", url: "https://images.unsplash.com/photo-1605336675276-f3ccab0f279d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" }
+  { name: "Marble Statue", url: "https://upload.wikimedia.org/wikipedia/commons/e/eb/Statue-Augustus.jpg" },
+  { name: "Roman Forum", url: "https://upload.wikimedia.org/wikipedia/commons/a/a2/Roman_Forum_pano_2.jpg" },
+  { name: "Old Manuscript", url: "https://upload.wikimedia.org/wikipedia/commons/d/d7/Vergilius_Romanus_Georgics.jpg" },
+  { name: "Candlelit Library", url: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Strahov_Library_Philosophical_Hall.jpg" }
 ];
 
 const fonts = [
@@ -67,6 +67,7 @@ export default function TypingTest() {
   const [bgOpacity, setBgOpacity] = useState(0.15);
   const [volume, setVolume] = useState(0.2);
   const [lofiEnabled, setLofiEnabled] = useState(false);
+  const [lofiVolume, setLofiVolume] = useState(0.5);
   const audioRef = useRef(null);
   const [fontFamily, setFontFamily] = useState(fonts[0].value);
   const [fontSize, setFontSize] = useState(24);
@@ -251,14 +252,14 @@ export default function TypingTest() {
   // Lofi Audio Control
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.volume = volume * 0.4; // Lofi should be quieter than clicks
+      audioRef.current.volume = lofiVolume;
       if (lofiEnabled) {
         audioRef.current.play().catch(e => console.error("Audio play failed", e));
       } else {
         audioRef.current.pause();
       }
     }
-  }, [lofiEnabled, volume]);
+  }, [lofiEnabled, lofiVolume]);
 
   const playClickSound = () => {
     if (volume === 0) return;
@@ -533,9 +534,26 @@ export default function TypingTest() {
 
               <button
                 onClick={(e) => { e.stopPropagation(); setLofiEnabled(!lofiEnabled); }}
-                className={`py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 ${lofiEnabled ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
+                onWheel={(e) => {
+                  e.stopPropagation();
+                  if (!lofiEnabled) return;
+                  const delta = e.deltaY > 0 ? -0.05 : 0.05;
+                  setLofiVolume(prev => Math.max(0, Math.min(1, prev + delta)));
+                }}
+                className={`relative overflow-hidden py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 select-none ${lofiEnabled ? 'text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
               >
-                🎵 Lofi: {lofiEnabled ? 'ON' : 'OFF'}
+                {lofiEnabled && (
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-mt-main z-0" 
+                    style={{ width: `${lofiVolume * 100}%` }}
+                  />
+                )}
+                {lofiEnabled && (
+                  <div className="absolute inset-0 bg-mt-main/30 z-0" />
+                )}
+                <span className="relative z-10 whitespace-nowrap">
+                  🎵 Lofi: {lofiEnabled ? `${Math.round(lofiVolume * 100)}%` : 'OFF'}
+                </span>
               </button>
 
               <button
