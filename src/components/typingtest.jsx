@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
@@ -69,6 +71,11 @@ export default function TypingTest() {
   const [showScansion, setShowScansion] = useState(true);
   const [startTime, setStartTime] = useState(null);
   const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
+
+  // Leaderboard State
+  const [playerName, setPlayerName] = useState('');
+  const [scoreSaved, setScoreSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const inputRef = useRef(null);
 
@@ -160,6 +167,9 @@ export default function TypingTest() {
     setStats({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
     setIsFinished(false);
     setTimeRemaining(testMode === 'time' ? timeLimit : null);
+    setScoreSaved(false);
+    setIsSaving(false);
+    setPlayerName('');
     if (inputRef.current) inputRef.current.focus();
   };
 
@@ -279,7 +289,7 @@ export default function TypingTest() {
   };
 
   const focusInput = (e) => {
-    if (e.target.tagName === 'SELECT' || e.target.type === 'range' || e.target.tagName === 'BUTTON' || isFinished) return;
+    if (e.target.tagName === 'SELECT' || e.target.type === 'range' || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' && e.target.type === 'text' && e.target !== inputRef.current || isFinished) return;
     if (inputRef.current) inputRef.current.focus();
   };
 
@@ -497,6 +507,46 @@ export default function TypingTest() {
                 <span className="text-6xl font-light text-mt-text">{stats.acc}%</span>
               </div>
             </div>
+            
+            <div className="flex flex-col items-center mb-8 w-full max-w-sm">
+              <input 
+                type="text" 
+                placeholder="Enter name for leaderboard..." 
+                className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center" 
+                maxLength={20}
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                disabled={scoreSaved || isSaving}
+              />
+              <button 
+                className={`w-full font-bold py-2 rounded-lg transition-colors ${scoreSaved ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-main text-mt-bg hover:bg-opacity-80'}`}
+                disabled={scoreSaved || isSaving}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (stats.wpm === 0) return;
+                  setIsSaving(true);
+                  try {
+                    await addDoc(collection(db, "scores"), {
+                      name: (playerName || "Anonymous").trim().substring(0, 20),
+                      wpm: stats.wpm,
+                      acc: stats.acc,
+                      mode: testMode,
+                      duration: testMode === 'time' ? timeLimit : null,
+                      passage: testMode === 'passage' ? `${selectedAuthor} - ${selectedWork}` : null,
+                      date: new Date().toISOString()
+                    });
+                    setScoreSaved(true);
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
+              >
+                {isSaving ? "Saving..." : (scoreSaved ? "Score Saved!" : "Submit Score")}
+              </button>
+            </div>
+
             <div className="flex gap-4">
               <button className="px-8 py-3 bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg transition-colors duration-200 rounded-lg font-bold text-lg" onClick={(e) => { e.stopPropagation(); resetTest(); }}>
                 Restart Test
