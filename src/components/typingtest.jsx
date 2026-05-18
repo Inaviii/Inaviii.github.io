@@ -4,18 +4,16 @@ import { db } from '../firebase';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
-  { name: "Rainy Window", url: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
-  { name: "Deep Forest", url: "https://images.unsplash.com/photo-1448375240586-882707db888b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
-  { name: "Night Sky", url: "https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
-  { name: "Ocean Waves", url: "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" }
+  { name: "Marble Statue", url: "https://images.unsplash.com/photo-1549480017-d76466a4b7e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
+  { name: "Roman Forum", url: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
+  { name: "Old Manuscript", url: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" },
+  { name: "Candlelit Library", url: "https://images.unsplash.com/photo-1605336675276-f3ccab0f279d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" }
 ];
 
 const fonts = [
-  { name: "Roboto Mono", value: '"Roboto Mono", monospace' },
-  { name: "JetBrains Mono", value: '"JetBrains Mono", monospace' },
-  { name: "Fira Code", value: '"Fira Code", monospace' },
-  { name: "Space Mono", value: '"Space Mono", monospace' },
-  { name: "Courier New", value: '"Courier New", monospace' }
+  { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
+  { name: "Courier Prime", value: '"Courier Prime", monospace' },
+  { name: "Syne Mono", value: '"Syne Mono", monospace' },
 ];
 
 const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -68,6 +66,8 @@ export default function TypingTest() {
   const [bgImage, setBgImage] = useState(backgrounds[0].url);
   const [bgOpacity, setBgOpacity] = useState(0.15);
   const [volume, setVolume] = useState(0.2);
+  const [lofiEnabled, setLofiEnabled] = useState(false);
+  const audioRef = useRef(null);
   const [fontFamily, setFontFamily] = useState(fonts[0].value);
   const [fontSize, setFontSize] = useState(24);
   const [showScansion, setShowScansion] = useState(true);
@@ -248,6 +248,18 @@ export default function TypingTest() {
     return () => clearInterval(interval);
   }, [startTime, isFinished, testMode, timeLimit]);
 
+  // Lofi Audio Control
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume * 0.4; // Lofi should be quieter than clicks
+      if (lofiEnabled) {
+        audioRef.current.play().catch(e => console.error("Audio play failed", e));
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [lofiEnabled, volume]);
+
   const playClickSound = () => {
     if (volume === 0) return;
     const click = new Audio('/click.mp3');
@@ -345,10 +357,11 @@ export default function TypingTest() {
         />
       )}
 
-      <div className="relative z-10 w-full max-w-[1600px] flex flex-col items-center px-4">
+      <audio ref={audioRef} src="/lofi.mp3" loop />
 
-        {/*header and controls*/}
-        <div className="w-full flex justify-between items-start mb-12">
+      {/* absolute header so viewport can perfectly center */}
+      <div className="absolute top-0 left-0 right-0 pt-4 sm:pt-8 px-4 sm:px-8 z-20 w-full flex justify-center pointer-events-none">
+        <div className="w-full max-w-[1600px] flex justify-between items-start pointer-events-auto">
 
           <div className="flex flex-col">
             <h1 className="text-2xl font-bold text-mt-text tracking-tighter mt-1">
@@ -433,7 +446,13 @@ export default function TypingTest() {
                   <div className="flex items-center gap-2 bg-mt-sub-alt rounded-md px-3 py-1 shrink-0">
                     <span className="text-mt-sub text-[0.65rem] font-bold uppercase tracking-widest hidden sm:inline">Lines</span>
                     
-                    <div className="flex flex-col items-center justify-center">
+                    <div 
+                      className="flex flex-col items-center justify-center"
+                      onWheel={(e) => {
+                        const delta = e.deltaY > 0 ? -1 : 1;
+                        setLineRange(prev => ({ ...prev, start: Math.max(1, Math.min(lineRange.max, Math.min(prev.start + delta, prev.end))) }));
+                      }}
+                    >
                       <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, start: Math.min(lineRange.max, Math.min(prev.start + 1, prev.end)) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-end justify-center w-full select-none cursor-pointer">▲</button>
                       <input 
                         type="number" min="1" max={lineRange.max} value={lineRange.start}
@@ -448,7 +467,13 @@ export default function TypingTest() {
 
                     <span className="text-mt-sub/50">-</span>
                     
-                    <div className="flex flex-col items-center justify-center">
+                    <div 
+                      className="flex flex-col items-center justify-center"
+                      onWheel={(e) => {
+                        const delta = e.deltaY > 0 ? -1 : 1;
+                        setLineRange(prev => ({ ...prev, end: Math.max(1, Math.min(lineRange.max, Math.max(prev.start, prev.end + delta))) }));
+                      }}
+                    >
                       <button onClick={(e) => { e.stopPropagation(); setLineRange(prev => ({ ...prev, end: Math.min(lineRange.max, prev.end + 1) })) }} className="text-mt-sub hover:text-mt-main leading-none text-[0.6rem] h-2 flex items-end justify-center w-full select-none cursor-pointer">▲</button>
                       <input 
                         type="number" min="1" max={lineRange.max} value={lineRange.end}
@@ -507,6 +532,13 @@ export default function TypingTest() {
               </select>
 
               <button
+                onClick={(e) => { e.stopPropagation(); setLofiEnabled(!lofiEnabled); }}
+                className={`py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 ${lofiEnabled ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
+              >
+                🎵 Lofi: {lofiEnabled ? 'ON' : 'OFF'}
+              </button>
+
+              <button
                 onClick={(e) => { e.stopPropagation(); setShowScansion(!showScansion); }}
                 className={`py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 ${showScansion ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'
                   }`}
@@ -526,6 +558,10 @@ export default function TypingTest() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* viewport container */}
+      <div className="relative z-10 w-full max-w-[1600px] flex flex-col items-center px-4 justify-center flex-grow mt-32 sm:mt-0">
 
         <input
           ref={inputRef}
