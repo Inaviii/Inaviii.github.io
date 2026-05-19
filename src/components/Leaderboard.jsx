@@ -24,20 +24,30 @@ export default function Leaderboard() {
 
         // use promise.all to fetch all categories in parallel
         await Promise.all(categories.map(async (cat) => {
-          let q;
-          if (cat.mode === 'passage') {
-            q = query(scoresRef, where("mode", "==", "passage"), orderBy("wpm", "desc"), limit(50));
-          } else {
-            q = query(scoresRef, where("mode", "==", "time"), where("duration", "==", cat.duration), orderBy("wpm", "desc"), limit(50));
+          try {
+            let q;
+            if (cat.mode === 'passage') {
+              q = query(scoresRef, where("mode", "==", "passage"), orderBy("wpm", "desc"), limit(50));
+            } else {
+              q = query(scoresRef, where("mode", "==", "time"), where("duration", "==", cat.duration), orderBy("wpm", "desc"), limit(50));
+            }
+            const querySnapshot = await getDocs(q);
+            results[cat.key] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          } catch (e) {
+            console.error(`Error fetching category ${cat.key}:`, e);
+            results[cat.key] = [];
           }
-          const querySnapshot = await getDocs(q);
-          results[cat.key] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         }));
 
-        const usersRef = collection(db, "users");
-        const rankedQ = query(usersRef, orderBy("elo", "desc"), limit(50));
-        const rankedSnap = await getDocs(rankedQ);
-        results['ranked'] = rankedSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        try {
+          const usersRef = collection(db, "users");
+          const rankedQ = query(usersRef, orderBy("elo", "desc"), limit(50));
+          const rankedSnap = await getDocs(rankedQ);
+          results['ranked'] = rankedSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (e) {
+          console.error("Error fetching ranked leaderboard (check Firestore rules for 'users' collection):", e);
+          results['ranked'] = [];
+        }
 
         setScores(results);
       } catch (error) {
