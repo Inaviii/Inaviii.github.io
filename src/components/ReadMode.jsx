@@ -214,7 +214,7 @@ export default function ReadMode() {
       </div>
 
       {/* Reader Container */}
-      <div className="relative z-10 w-full max-w-[800px] flex flex-col flex-grow bg-mt-bg/80 backdrop-blur-md rounded-xl p-8 sm:p-12 mb-16 shadow-2xl border border-mt-sub/10">
+      <div className="relative z-10 w-full max-w-[1200px] flex flex-col flex-grow bg-mt-bg/80 backdrop-blur-md rounded-xl p-8 sm:p-12 mb-16 shadow-2xl border border-mt-sub/10">
         {isFetchingAuthor ? (
           <div className="text-center text-mt-sub animate-pulse py-12">Fetching Text...</div>
         ) : (
