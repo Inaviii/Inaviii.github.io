@@ -3,9 +3,10 @@ import { collection, query, orderBy, limit, getDocs, where } from 'firebase/fire
 import { db } from '../firebase';
 
 export default function Leaderboard() {
-  const [scores, setScores] = useState({ passage: [], time30: [], time60: [], time120: [] });
+  const [scores, setScores] = useState({ passage: [], time30: [], time60: [], time120: [], ranked: [] });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('time60');
+  const [activeTab, setActiveTab] = useState('ranked');
+  const playerId = localStorage.getItem('latintype_pid');
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -32,6 +33,11 @@ export default function Leaderboard() {
           const querySnapshot = await getDocs(q);
           results[cat.key] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         }));
+
+        const usersRef = collection(db, "users");
+        const rankedQ = query(usersRef, orderBy("elo", "desc"), limit(50));
+        const rankedSnap = await getDocs(rankedQ);
+        results['ranked'] = rankedSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         setScores(results);
       } catch (error) {
@@ -80,6 +86,37 @@ export default function Leaderboard() {
     );
   };
 
+  const renderRankedTable = (data) => {
+    if (!data || data.length === 0) return <div className="text-mt-sub mt-16 text-center italic text-lg">No ranked players yet. Be the first!</div>;
+
+    return (
+      <div className="w-full mt-6 overflow-hidden rounded-lg shadow-lg border border-mt-sub/20 bg-mt-bg/80 backdrop-blur-md">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-mt-sub-alt/60 text-mt-sub text-sm uppercase tracking-wider">
+              <th className="px-6 py-4 font-bold border-b border-mt-sub/20 w-16 text-center">#</th>
+              <th className="px-6 py-4 font-bold border-b border-mt-sub/20">Name</th>
+              <th className="px-6 py-4 font-bold border-b border-mt-sub/20 text-right">Record</th>
+              <th className="px-6 py-4 font-bold border-b border-mt-sub/20 text-right">Elo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-mt-sub/10">
+            {data.map((user, index) => (
+              <tr key={user.id} className={`hover:bg-mt-sub-alt/40 transition-colors ${user.id === playerId ? 'bg-mt-main/20 border-l-4 border-l-mt-main' : ''}`}>
+                <td className={`px-6 py-5 text-center font-bold ${index < 3 ? 'text-mt-main' : 'text-mt-sub'}`}>{index + 1}</td>
+                <td className="px-6 py-5 font-bold text-mt-text truncate max-w-[150px] sm:max-w-[300px]">
+                  {user.name}
+                </td>
+                <td className="px-6 py-5 text-right font-mono text-mt-sub text-sm">{user.wins}W - {user.losses}L</td>
+                <td className="px-6 py-5 text-right text-mt-main font-bold text-2xl">{user.elo}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full flex flex-col items-center pt-8 pb-16 font-mono tracking-wide relative z-10">
       <div className="w-full max-w-4xl flex flex-col px-4">
@@ -91,6 +128,7 @@ export default function Leaderboard() {
         </div>
 
         <div className="flex flex-wrap gap-3 mb-4">
+          <button onClick={() => setActiveTab('ranked')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'ranked' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>🏆 Ranked Multiplayer</button>
           <button onClick={() => setActiveTab('time30')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'time30' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>30s Time Attack</button>
           <button onClick={() => setActiveTab('time60')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'time60' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>60s Time Attack</button>
           <button onClick={() => setActiveTab('time120')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'time120' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>120s Time Attack</button>
@@ -102,7 +140,7 @@ export default function Leaderboard() {
             <span className="text-mt-main animate-pulse font-bold tracking-widest uppercase text-xl">Fetching Scrolls...</span>
           </div>
         ) : (
-          renderTable(scores[activeTab])
+          activeTab === 'ranked' ? renderRankedTable(scores['ranked']) : renderTable(scores[activeTab])
         )}
       </div>
     </div>

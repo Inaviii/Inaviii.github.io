@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const backgrounds = [
@@ -71,9 +71,6 @@ export default function TypingTest() {
   const [userProfile, setUserProfile] = useState(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [tempUsername, setTempUsername] = useState('');
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [globalRankings, setGlobalRankings] = useState([]);
-  const [myGlobalRank, setMyGlobalRank] = useState(null);
 
   // cascading selection state
   const [selectedAuthor, setSelectedAuthor] = useState('');
@@ -248,8 +245,16 @@ export default function TypingTest() {
       const q = query(matchesRef, where('status', '==', 'waiting'));
       const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const matchDoc = querySnapshot.docs[0];
+      let matchToJoin = null;
+      for (const d of querySnapshot.docs) {
+        if (!d.data().players || !d.data().players[playerId]) {
+          matchToJoin = d;
+          break;
+        }
+      }
+
+      if (matchToJoin) {
+        const matchDoc = matchToJoin;
         const matchData = matchDoc.data();
         
         await updateDoc(doc(db, 'matches', matchDoc.id), {
@@ -391,27 +396,6 @@ export default function TypingTest() {
       setShowUsernamePrompt(false);
     } catch (e) {
       console.error("Failed to save profile", e);
-    }
-  };
-
-  const fetchLeaderboard = async () => {
-    setShowLeaderboard(true);
-    try {
-      const q = query(collection(db, 'users'), orderBy('elo', 'desc'), limit(10));
-      const snap = await getDocs(q);
-      const ranks = snap.docs.map((d, i) => ({ id: d.id, rank: i + 1, ...d.data() }));
-      setGlobalRankings(ranks);
-
-      const amITop10 = ranks.some(r => r.id === playerId);
-      if (!amITop10 && userProfile) {
-        const higherQ = query(collection(db, 'users'), where('elo', '>', userProfile.elo));
-        const higherSnap = await getDocs(higherQ);
-        setMyGlobalRank(higherSnap.size + 1);
-      } else {
-        setMyGlobalRank(null);
-      }
-    } catch (e) {
-      console.error(e);
     }
   };
 
@@ -704,12 +688,6 @@ export default function TypingTest() {
               >
                 Multiplayer (30s)
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); fetchLeaderboard(); }}
-                className="py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 text-mt-main hover:bg-mt-main/20 ml-2"
-              >
-                🏆 Rankings
-              </button>
             </div>
 
             {/*navigation*/}
@@ -932,8 +910,18 @@ export default function TypingTest() {
             </div>
 
             {isQueueing && (
-              <div className="absolute inset-0 bg-mt-bg/90 backdrop-blur-md rounded-lg flex items-center justify-center z-20">
-                <span className="text-mt-main animate-pulse font-bold tracking-widest uppercase">Finding Opponent...</span>
+              <div className="absolute inset-0 bg-mt-bg/90 backdrop-blur-md rounded-lg flex flex-col items-center justify-center z-20">
+                <span className="text-mt-main animate-pulse font-bold tracking-widest uppercase mb-4">Finding Opponent...</span>
+                <button onClick={async (e) => {
+                  e.stopPropagation();
+                  setIsQueueing(false);
+                  setTestMode('passage');
+                  if (matchId) {
+                    try {
+                       await deleteDoc(doc(db, 'matches', matchId));
+                    } catch(e) {}
+                  }
+                }} className="px-4 py-2 bg-mt-error/20 text-mt-error rounded-lg hover:bg-mt-error hover:text-mt-bg transition-colors font-bold text-sm">Cancel</button>
               </div>
             )}
             {multiplayerCountdown !== null && (
@@ -1141,48 +1129,6 @@ export default function TypingTest() {
               <button onClick={() => setShowUsernamePrompt(false)} className="flex-1 py-3 bg-mt-bg text-mt-sub hover:text-mt-text rounded-lg font-bold transition-colors">Cancel</button>
               <button onClick={handleSetUsername} className="flex-1 py-3 bg-mt-main text-mt-bg hover:bg-opacity-80 rounded-lg font-bold shadow-lg transition-colors">Begin</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showLeaderboard && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-mt-bg/80 backdrop-blur-md" onClick={() => setShowLeaderboard(false)}>
-          <div className="bg-mt-sub-alt p-8 rounded-xl shadow-2xl border border-mt-sub/20 max-w-lg w-full mx-4 relative" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowLeaderboard(false)} className="absolute top-4 right-4 text-mt-sub hover:text-mt-error text-xl font-bold">×</button>
-            <h2 className="text-3xl font-bold text-mt-main mb-6 uppercase tracking-widest text-center flex items-center justify-center gap-2">
-              🏆 Top 10 Typists
-            </h2>
-            
-            <div className="flex flex-col gap-2 mb-6">
-              {globalRankings.map((user, idx) => (
-                <div key={user.id} className={`flex items-center justify-between p-3 rounded-lg ${user.id === playerId ? 'bg-mt-main/20 border border-mt-main/50' : 'bg-mt-bg'} shadow-sm`}>
-                  <div className="flex items-center gap-4">
-                    <span className={`font-bold w-6 text-center ${idx < 3 ? 'text-mt-main' : 'text-mt-sub'}`}>#{user.rank}</span>
-                    <span className="font-bold text-mt-text">{user.name}</span>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-xs text-mt-sub font-mono">{user.wins}W - {user.losses}L</span>
-                    <span className="font-bold text-mt-main w-12 text-right">{user.elo}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {myGlobalRank && userProfile && (
-              <div className="mt-4 border-t border-mt-sub/20 pt-4 flex flex-col items-center">
-                <span className="text-mt-sub text-xs uppercase tracking-widest mb-2">Your Current Rank</span>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-mt-main/20 border border-mt-main/50 shadow-sm w-full">
-                  <div className="flex items-center gap-4">
-                    <span className="font-bold w-6 text-center text-mt-main">#{myGlobalRank}</span>
-                    <span className="font-bold text-mt-text">{userProfile.name}</span>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-xs text-mt-sub font-mono">{userProfile.wins}W - {userProfile.losses}L</span>
-                    <span className="font-bold text-mt-main w-12 text-right">{userProfile.elo}</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
