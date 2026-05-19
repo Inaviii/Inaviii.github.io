@@ -96,21 +96,20 @@ export default function ReadMode() {
   useEffect(() => {
     if (!libraryIndex || !activeAuthorData || !selectedAuthor || !selectedWork || !selectedPieceId || isFetchingAuthor) return;
 
-    const pieceMeta = libraryIndex[selectedAuthor][selectedWork].find(p => p.id === selectedPieceId);
-    if (!pieceMeta) return;
-
     const piece = activeAuthorData.find(p => p.id === selectedPieceId);
     if (!piece) return;
 
+    const rawLines = piece.text.split('\n');
+    const totalLines = rawLines.length;
+
     if (loadedPieceId !== selectedPieceId) {
       setLoadedPieceId(selectedPieceId);
-      setLineRange({ start: 1, end: pieceMeta.lines, max: pieceMeta.lines });
+      setLineRange({ start: 1, end: totalLines, max: totalLines });
     }
 
     const startIdx = Math.max(0, lineRange.start - 1);
-    const endIdx = Math.min(pieceMeta.lines, lineRange.end);
+    const endIdx = Math.min(totalLines, lineRange.end);
 
-    const rawLines = piece.text.split('\n');
     const activeLines = rawLines.slice(startIdx, endIdx);
     setLines(activeLines);
   }, [libraryIndex, activeAuthorData, selectedPieceId, lineRange.start, lineRange.end, isFetchingAuthor, selectedAuthor, selectedWork]);
