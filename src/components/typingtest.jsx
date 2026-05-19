@@ -614,7 +614,7 @@ export default function TypingTest() {
       </div>
 
       {/* viewport container */}
-      <div className="relative z-10 w-full max-w-[1600px] flex flex-col items-center px-4 justify-center flex-grow mt-32 sm:mt-0">
+      <div className="relative z-10 w-full max-w-5xl flex flex-col items-center px-4 justify-center flex-grow mt-32 sm:mt-0">
 
         <input
           ref={inputRef}
@@ -718,7 +718,7 @@ export default function TypingTest() {
               else if (distance === 2) lineOpacity = "opacity-30";
 
               return (
-                <div key={lIdx} className={`absolute left-0 w-full flex justify-center items-center flex-nowrap whitespace-nowrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
+                <div key={lIdx} className={`absolute left-1/2 -translate-x-1/2 w-max flex justify-center items-center flex-nowrap whitespace-nowrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
                   {lineObj.words.map((wObj, wIdx) => {
                     const { word, globalIdx } = wObj;
                     const isCurrentWord = globalIdx === wordIndex;
