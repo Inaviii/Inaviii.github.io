@@ -154,18 +154,21 @@ export default function TypingTest() {
 
   // fetch user profile on mount
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const docSnap = await getDoc(doc(db, 'users', playerId));
-        if (docSnap.exists()) {
-          setUserProfile(docSnap.data());
+    const savedName = localStorage.getItem('latintype_ranked_name');
+    if (savedName) {
+      const fetchProfile = async () => {
+        try {
+          const docSnap = await getDoc(doc(db, 'users', savedName));
+          if (docSnap.exists()) {
+            setUserProfile({ ...docSnap.data(), docId: savedName });
+          }
+        } catch (e) {
+          console.error("Error fetching profile", e);
         }
-      } catch (e) {
-        console.error("Error fetching profile", e);
-      }
-    };
-    fetchProfile();
-  }, [playerId]);
+      };
+      fetchProfile();
+    }
+  }, []);
 
   // helper to fetch heavy author data lazily
   const fetchAuthorData = (authorName) => {
@@ -355,7 +358,7 @@ export default function TypingTest() {
          setUserProfile(prev => ({ ...prev, elo: newElo, wins: newWins, losses: newLosses, draws: newDraws }));
          
          try {
-           await updateDoc(doc(db, 'users', playerId), {
+           await updateDoc(doc(db, 'users', userProfile.docId), {
              elo: newElo,
              wins: newWins,
              losses: newLosses,
@@ -383,16 +386,28 @@ export default function TypingTest() {
   const handleSetUsername = async () => {
     if (!tempUsername.trim()) return;
     const cleanName = tempUsername.trim();
-    const newProfile = {
-      name: cleanName,
-      elo: 1200,
-      wins: 0,
-      losses: 0,
-      draws: 0
-    };
+    const docId = cleanName.toLowerCase();
+    
     try {
-      await setDoc(doc(db, 'users', playerId), newProfile);
-      setUserProfile(newProfile);
+      const docRef = doc(db, 'users', docId);
+      const docSnap = await getDoc(docRef);
+      
+      let profile;
+      if (docSnap.exists()) {
+        profile = docSnap.data();
+      } else {
+        profile = {
+          name: cleanName,
+          elo: 1200,
+          wins: 0,
+          losses: 0,
+          draws: 0
+        };
+        await setDoc(docRef, profile);
+      }
+      
+      setUserProfile({ ...profile, docId });
+      localStorage.setItem('latintype_ranked_name', docId);
       setShowUsernamePrompt(false);
     } catch (e) {
       console.error("Failed to save profile", e);

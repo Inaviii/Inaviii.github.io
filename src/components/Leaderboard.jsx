@@ -111,16 +111,20 @@ export default function Leaderboard() {
             </tr>
           </thead>
           <tbody className="divide-y divide-mt-sub/10">
-            {data.map((user, index) => (
-              <tr key={user.id} className={`hover:bg-mt-sub-alt/40 transition-colors ${user.id === playerId ? 'bg-mt-main/20 border-l-4 border-l-mt-main' : ''}`}>
-                <td className={`px-6 py-5 text-center font-bold ${index < 3 ? 'text-mt-main' : 'text-mt-sub'}`}>{index + 1}</td>
-                <td className="px-6 py-5 font-bold text-mt-text truncate max-w-[150px] sm:max-w-[300px]">
-                  {user.name}
-                </td>
-                <td className="px-6 py-5 text-right font-mono text-mt-sub text-sm">{user.wins}W - {user.losses}L</td>
-                <td className="px-6 py-5 text-right text-mt-main font-bold text-2xl">{user.elo}</td>
-              </tr>
-            ))}
+            {data.map((user, index) => {
+              const rankedName = localStorage.getItem('latintype_ranked_name');
+              const isCurrentUser = user.id === rankedName;
+              return (
+                <tr key={user.id} className={`hover:bg-mt-sub-alt/40 transition-colors ${isCurrentUser ? 'bg-mt-main/20 border-l-4 border-l-mt-main' : ''}`}>
+                  <td className={`px-6 py-5 text-center font-bold ${index < 3 ? 'text-mt-main' : 'text-mt-sub'}`}>{index + 1}</td>
+                  <td className="px-6 py-5 font-bold text-mt-text truncate max-w-[150px] sm:max-w-[300px]">
+                    {user.name}
+                  </td>
+                  <td className="px-6 py-5 text-right font-mono text-mt-sub text-sm">{user.wins}W - {user.losses}L</td>
+                  <td className="px-6 py-5 text-right text-mt-main font-bold text-2xl">{user.elo}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
