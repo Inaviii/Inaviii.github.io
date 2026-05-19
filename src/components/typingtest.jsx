@@ -752,7 +752,7 @@ export default function TypingTest() {
 
             {/*navigation*/}
             <div className="flex gap-3 bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg justify-end w-full">
-              {testMode === 'passage' ? (
+              {testMode === 'passage' || testMode === 'zen' ? (
                 <>
                   <select
                     className="bg-transparent text-mt-main hover:text-mt-text transition-colors duration-200 py-2 px-3 outline-none cursor-pointer text-sm font-bold max-w-35 truncate"
@@ -831,7 +831,7 @@ export default function TypingTest() {
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : testMode === 'time' ? (
                 <>
                   <div className="flex items-center mr-4 hidden md:flex">
                     <span className="text-mt-sub text-xs uppercase tracking-widest truncate max-w-[250px] text-right">
@@ -854,6 +854,12 @@ export default function TypingTest() {
                     🎲 Roll New Text
                   </button>
                 </>
+              ) : (
+                <div className="flex items-center px-4">
+                  <span className="text-mt-main font-bold text-sm uppercase tracking-widest truncate max-w-[250px] text-right">
+                    {selectedAuthor} - {selectedWork}
+                  </span>
+                </div>
               )}
             </div>
 
