@@ -42,9 +42,9 @@ export default function ReadMode() {
         const savedWork = localStorage.getItem('selectedWork');
         const savedPieceId = localStorage.getItem('selectedPieceId');
 
-        const hasSavedPiece = savedAuthor && indexData[savedAuthor] && 
-                              savedWork && indexData[savedAuthor][savedWork] && 
-                              savedPieceId && indexData[savedAuthor][savedWork].some(p => p.id === savedPieceId);
+        const hasSavedPiece = savedAuthor && indexData[savedAuthor] &&
+          savedWork && indexData[savedAuthor][savedWork] &&
+          savedPieceId && indexData[savedAuthor][savedWork].some(p => p.id === savedPieceId);
 
         const initialAuthor = hasSavedPiece ? savedAuthor : (indexData['Catullus'] ? 'Catullus' : Object.keys(indexData)[0]);
         const initialWork = hasSavedPiece ? savedWork : (indexData[initialAuthor]['Carmina'] ? 'Carmina' : Object.keys(indexData[initialAuthor])[0]);
