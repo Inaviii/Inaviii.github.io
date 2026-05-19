@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import TypingTest from './components/typingtest'
+import ReadMode from './components/ReadMode'
 import Leaderboard from './components/Leaderboard'
 
 function App() {
@@ -15,13 +16,19 @@ function App() {
           Type
         </button>
         <button 
+          onClick={() => setCurrentPage('read')}
+          className={`font-bold uppercase tracking-widest text-xs transition-all duration-300 ${currentPage === 'read' ? 'text-mt-main drop-shadow-[0_0_8px_rgba(226,183,20,0.5)]' : 'text-mt-sub hover:text-mt-text'}`}
+        >
+          Read
+        </button>
+        <button 
           onClick={() => setCurrentPage('leaderboard')}
           className={`font-bold uppercase tracking-widest text-xs transition-all duration-300 ${currentPage === 'leaderboard' ? 'text-mt-main drop-shadow-[0_0_8px_rgba(226,183,20,0.5)]' : 'text-mt-sub hover:text-mt-text'}`}
         >
           Leaderboards
         </button>
       </nav>
-      {currentPage === 'test' ? <TypingTest /> : <Leaderboard />}
+      {currentPage === 'test' ? <TypingTest /> : currentPage === 'read' ? <ReadMode /> : <Leaderboard />}
     </div>
   )
 }
