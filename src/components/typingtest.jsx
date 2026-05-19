@@ -718,7 +718,7 @@ export default function TypingTest() {
               else if (distance === 2) lineOpacity = "opacity-30";
 
               return (
-                <div key={lIdx} className={`absolute left-0 w-full flex items-center flex-nowrap whitespace-nowrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
+                <div key={lIdx} className={`absolute left-0 w-full flex justify-center items-center flex-nowrap whitespace-nowrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
                   {lineObj.words.map((wObj, wIdx) => {
                     const { word, globalIdx } = wObj;
                     const isCurrentWord = globalIdx === wordIndex;
