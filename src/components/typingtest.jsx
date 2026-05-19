@@ -61,7 +61,6 @@ export default function TypingTest() {
   // engine state
   const [lines, setLines] = useState([]);
   const [wordIndex, setWordIndex] = useState(0);
-  const [maxWidthStyle, setMaxWidthStyle] = useState('100%');
   const [currentInput, setCurrentInput] = useState('');
   const [typedHistory, setTypedHistory] = useState([]);
   const [isFinished, setIsFinished] = useState(false);
@@ -228,20 +227,8 @@ export default function TypingTest() {
     }
 
     let globalIdx = 0;
-    let maxCh = 0;
-    let maxSpaces = 0;
-
     const parsedLines = rawLines.map((lineStr, lIdx) => {
-      const rawWords = lineStr.trim().split(' ').filter(w => w.length > 0);
-      const lineChars = rawWords.reduce((sum, w) => sum + w.length, 0);
-      const lineSpaces = rawWords.length > 1 ? rawWords.length - 1 : 0;
-      
-      if (lineChars > 0 && (!maxCh || (lineChars + lineSpaces * 2) > (maxCh + maxSpaces * 2))) {
-        maxCh = lineChars;
-        maxSpaces = lineSpaces;
-      }
-
-      const words = rawWords.map(word => {
+      const words = lineStr.trim().split(' ').filter(w => w.length > 0).map(word => {
         const wordObj = { word, globalIdx };
         globalIdx++;
         return wordObj;
@@ -249,7 +236,6 @@ export default function TypingTest() {
       return { words, scansion: rawScansion ? rawScansion[lIdx] : null };
     });
 
-    setMaxWidthStyle(`calc(${maxCh}ch + ${maxSpaces}rem)`);
     setLines(parsedLines);
     resetTest();
   }, [selectedPieceId, activeAuthorData, isFetchingAuthor, testMode, loadedPieceId, lineRange.start, lineRange.end]);
@@ -642,8 +628,8 @@ export default function TypingTest() {
 
         {/* viewport */}
         <div
-          className="relative overflow-hidden select-none mt-8 pt-6 rounded-lg transition-all duration-300 ease-in-out"
-          style={{ height: `${viewportHeightPx + 24}px`, fontSize: `${fontSize}px`, width: maxWidthStyle, maxWidth: '100%' }}
+          className="relative overflow-hidden w-full select-none mt-8 pt-6 rounded-lg"
+          style={{ height: `${viewportHeightPx + 24}px`, fontSize: `${fontSize}px` }}
         >
           {/*loading overlay*/}
           <div className={`absolute inset-0 z-40 flex items-center justify-center bg-mt-bg/50 backdrop-blur-sm transition-opacity duration-300 ${isFetchingAuthor ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
@@ -732,7 +718,7 @@ export default function TypingTest() {
               else if (distance === 2) lineOpacity = "opacity-30";
 
               return (
-                <div key={lIdx} className={`absolute left-0 w-full flex justify-start items-center flex-nowrap whitespace-nowrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
+                <div key={lIdx} className={`absolute left-1/2 -translate-x-1/2 w-max flex justify-center items-center flex-nowrap whitespace-nowrap transition-opacity duration-500 ${lineOpacity}`} style={{ top: `${lIdx * lineHeightPx}px`, height: `${lineHeightPx}px` }}>
                   {lineObj.words.map((wObj, wIdx) => {
                     const { word, globalIdx } = wObj;
                     const isCurrentWord = globalIdx === wordIndex;
