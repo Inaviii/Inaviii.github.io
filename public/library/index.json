@@ -1,4 +1,480 @@
 {
+  "Catullus": {
+    "Carmina": [
+      {
+        "id": "catullus-1",
+        "piece": "Poem 1"
+      },
+      {
+        "id": "catullus-2",
+        "piece": "Poem 2"
+      },
+      {
+        "id": "catullus-2b",
+        "piece": "Poem 2b"
+      },
+      {
+        "id": "catullus-3",
+        "piece": "Poem 3"
+      },
+      {
+        "id": "catullus-4",
+        "piece": "Poem 4"
+      },
+      {
+        "id": "catullus-5",
+        "piece": "Poem 5"
+      },
+      {
+        "id": "catullus-6",
+        "piece": "Poem 6"
+      },
+      {
+        "id": "catullus-7",
+        "piece": "Poem 7"
+      },
+      {
+        "id": "catullus-8",
+        "piece": "Poem 8"
+      },
+      {
+        "id": "catullus-9",
+        "piece": "Poem 9"
+      },
+      {
+        "id": "catullus-10",
+        "piece": "Poem 10"
+      },
+      {
+        "id": "catullus-11",
+        "piece": "Poem 11"
+      },
+      {
+        "id": "catullus-12",
+        "piece": "Poem 12"
+      },
+      {
+        "id": "catullus-13",
+        "piece": "Poem 13"
+      },
+      {
+        "id": "catullus-14",
+        "piece": "Poem 14"
+      },
+      {
+        "id": "catullus-14b",
+        "piece": "Poem 14b"
+      },
+      {
+        "id": "catullus-15",
+        "piece": "Poem 15"
+      },
+      {
+        "id": "catullus-16",
+        "piece": "Poem 16"
+      },
+      {
+        "id": "catullus-17",
+        "piece": "Poem 17"
+      },
+      {
+        "id": "catullus-21",
+        "piece": "Poem 21"
+      },
+      {
+        "id": "catullus-22",
+        "piece": "Poem 22"
+      },
+      {
+        "id": "catullus-23",
+        "piece": "Poem 23"
+      },
+      {
+        "id": "catullus-24",
+        "piece": "Poem 24"
+      },
+      {
+        "id": "catullus-25",
+        "piece": "Poem 25"
+      },
+      {
+        "id": "catullus-26",
+        "piece": "Poem 26"
+      },
+      {
+        "id": "catullus-27",
+        "piece": "Poem 27"
+      },
+      {
+        "id": "catullus-28",
+        "piece": "Poem 28"
+      },
+      {
+        "id": "catullus-29",
+        "piece": "Poem 29"
+      },
+      {
+        "id": "catullus-30",
+        "piece": "Poem 30"
+      },
+      {
+        "id": "catullus-31",
+        "piece": "Poem 31"
+      },
+      {
+        "id": "catullus-32",
+        "piece": "Poem 32"
+      },
+      {
+        "id": "catullus-33",
+        "piece": "Poem 33"
+      },
+      {
+        "id": "catullus-34",
+        "piece": "Poem 34"
+      },
+      {
+        "id": "catullus-35",
+        "piece": "Poem 35"
+      },
+      {
+        "id": "catullus-36",
+        "piece": "Poem 36"
+      },
+      {
+        "id": "catullus-37",
+        "piece": "Poem 37"
+      },
+      {
+        "id": "catullus-38",
+        "piece": "Poem 38"
+      },
+      {
+        "id": "catullus-39",
+        "piece": "Poem 39"
+      },
+      {
+        "id": "catullus-40",
+        "piece": "Poem 40"
+      },
+      {
+        "id": "catullus-41",
+        "piece": "Poem 41"
+      },
+      {
+        "id": "catullus-42",
+        "piece": "Poem 42"
+      },
+      {
+        "id": "catullus-43",
+        "piece": "Poem 43"
+      },
+      {
+        "id": "catullus-44",
+        "piece": "Poem 44"
+      },
+      {
+        "id": "catullus-45",
+        "piece": "Poem 45"
+      },
+      {
+        "id": "catullus-46",
+        "piece": "Poem 46"
+      },
+      {
+        "id": "catullus-47",
+        "piece": "Poem 47"
+      },
+      {
+        "id": "catullus-48",
+        "piece": "Poem 48"
+      },
+      {
+        "id": "catullus-49",
+        "piece": "Poem 49"
+      },
+      {
+        "id": "catullus-50",
+        "piece": "Poem 50"
+      },
+      {
+        "id": "catullus-51",
+        "piece": "Poem 51"
+      },
+      {
+        "id": "catullus-52",
+        "piece": "Poem 52"
+      },
+      {
+        "id": "catullus-53",
+        "piece": "Poem 53"
+      },
+      {
+        "id": "catullus-54",
+        "piece": "Poem 54"
+      },
+      {
+        "id": "catullus-55",
+        "piece": "Poem 55"
+      },
+      {
+        "id": "catullus-56",
+        "piece": "Poem 56"
+      },
+      {
+        "id": "catullus-57",
+        "piece": "Poem 57"
+      },
+      {
+        "id": "catullus-58",
+        "piece": "Poem 58"
+      },
+      {
+        "id": "catullus-58b",
+        "piece": "Poem 58b"
+      },
+      {
+        "id": "catullus-59",
+        "piece": "Poem 59"
+      },
+      {
+        "id": "catullus-60",
+        "piece": "Poem 60"
+      },
+      {
+        "id": "catullus-61",
+        "piece": "Poem 61"
+      },
+      {
+        "id": "catullus-62",
+        "piece": "Poem 62"
+      },
+      {
+        "id": "catullus-63",
+        "piece": "Poem 63"
+      },
+      {
+        "id": "catullus-64",
+        "piece": "Poem 64"
+      },
+      {
+        "id": "catullus-65",
+        "piece": "Poem 65"
+      },
+      {
+        "id": "catullus-66",
+        "piece": "Poem 66"
+      },
+      {
+        "id": "catullus-67",
+        "piece": "Poem 67"
+      },
+      {
+        "id": "catullus-68",
+        "piece": "Poem 68"
+      },
+      {
+        "id": "catullus-69",
+        "piece": "Poem 69"
+      },
+      {
+        "id": "catullus-70",
+        "piece": "Poem 70"
+      },
+      {
+        "id": "catullus-71",
+        "piece": "Poem 71"
+      },
+      {
+        "id": "catullus-72",
+        "piece": "Poem 72"
+      },
+      {
+        "id": "catullus-73",
+        "piece": "Poem 73"
+      },
+      {
+        "id": "catullus-74",
+        "piece": "Poem 74"
+      },
+      {
+        "id": "catullus-75",
+        "piece": "Poem 75"
+      },
+      {
+        "id": "catullus-76",
+        "piece": "Poem 76"
+      },
+      {
+        "id": "catullus-77",
+        "piece": "Poem 77"
+      },
+      {
+        "id": "catullus-78",
+        "piece": "Poem 78"
+      },
+      {
+        "id": "catullus-78b",
+        "piece": "Poem 78b"
+      },
+      {
+        "id": "catullus-79",
+        "piece": "Poem 79"
+      },
+      {
+        "id": "catullus-80",
+        "piece": "Poem 80"
+      },
+      {
+        "id": "catullus-81",
+        "piece": "Poem 81"
+      },
+      {
+        "id": "catullus-82",
+        "piece": "Poem 82"
+      },
+      {
+        "id": "catullus-83",
+        "piece": "Poem 83"
+      },
+      {
+        "id": "catullus-84",
+        "piece": "Poem 84"
+      },
+      {
+        "id": "catullus-85",
+        "piece": "Poem 85"
+      },
+      {
+        "id": "catullus-86",
+        "piece": "Poem 86"
+      },
+      {
+        "id": "catullus-87",
+        "piece": "Poem 87"
+      },
+      {
+        "id": "catullus-88",
+        "piece": "Poem 88"
+      },
+      {
+        "id": "catullus-89",
+        "piece": "Poem 89"
+      },
+      {
+        "id": "catullus-90",
+        "piece": "Poem 90"
+      },
+      {
+        "id": "catullus-91",
+        "piece": "Poem 91"
+      },
+      {
+        "id": "catullus-92",
+        "piece": "Poem 92"
+      },
+      {
+        "id": "catullus-93",
+        "piece": "Poem 93"
+      },
+      {
+        "id": "catullus-94",
+        "piece": "Poem 94"
+      },
+      {
+        "id": "catullus-95",
+        "piece": "Poem 95"
+      },
+      {
+        "id": "catullus-95b",
+        "piece": "Poem 95b"
+      },
+      {
+        "id": "catullus-96",
+        "piece": "Poem 96"
+      },
+      {
+        "id": "catullus-97",
+        "piece": "Poem 97"
+      },
+      {
+        "id": "catullus-98",
+        "piece": "Poem 98"
+      },
+      {
+        "id": "catullus-99",
+        "piece": "Poem 99"
+      },
+      {
+        "id": "catullus-100",
+        "piece": "Poem 100"
+      },
+      {
+        "id": "catullus-101",
+        "piece": "Poem 101"
+      },
+      {
+        "id": "catullus-102",
+        "piece": "Poem 102"
+      },
+      {
+        "id": "catullus-103",
+        "piece": "Poem 103"
+      },
+      {
+        "id": "catullus-104",
+        "piece": "Poem 104"
+      },
+      {
+        "id": "catullus-105",
+        "piece": "Poem 105"
+      },
+      {
+        "id": "catullus-106",
+        "piece": "Poem 106"
+      },
+      {
+        "id": "catullus-107",
+        "piece": "Poem 107"
+      },
+      {
+        "id": "catullus-108",
+        "piece": "Poem 108"
+      },
+      {
+        "id": "catullus-109",
+        "piece": "Poem 109"
+      },
+      {
+        "id": "catullus-110",
+        "piece": "Poem 110"
+      },
+      {
+        "id": "catullus-111",
+        "piece": "Poem 111"
+      },
+      {
+        "id": "catullus-112",
+        "piece": "Poem 112"
+      },
+      {
+        "id": "catullus-113",
+        "piece": "Poem 113"
+      },
+      {
+        "id": "catullus-114",
+        "piece": "Poem 114"
+      },
+      {
+        "id": "catullus-115",
+        "piece": "Poem 115"
+      },
+      {
+        "id": "catullus-116",
+        "piece": "Poem 116"
+      }
+    ]
+  },
   "Cicero": {
     "Aratea": [
       {
@@ -1788,482 +2264,6 @@
       {
         "id": "calpurnius-7",
         "piece": "Eclogue 7"
-      }
-    ]
-  },
-  "Catullus": {
-    "Carmina": [
-      {
-        "id": "catullus-1",
-        "piece": "Poem 1"
-      },
-      {
-        "id": "catullus-2",
-        "piece": "Poem 2"
-      },
-      {
-        "id": "catullus-2b",
-        "piece": "Poem 2b"
-      },
-      {
-        "id": "catullus-3",
-        "piece": "Poem 3"
-      },
-      {
-        "id": "catullus-4",
-        "piece": "Poem 4"
-      },
-      {
-        "id": "catullus-5",
-        "piece": "Poem 5"
-      },
-      {
-        "id": "catullus-6",
-        "piece": "Poem 6"
-      },
-      {
-        "id": "catullus-7",
-        "piece": "Poem 7"
-      },
-      {
-        "id": "catullus-8",
-        "piece": "Poem 8"
-      },
-      {
-        "id": "catullus-9",
-        "piece": "Poem 9"
-      },
-      {
-        "id": "catullus-10",
-        "piece": "Poem 10"
-      },
-      {
-        "id": "catullus-11",
-        "piece": "Poem 11"
-      },
-      {
-        "id": "catullus-12",
-        "piece": "Poem 12"
-      },
-      {
-        "id": "catullus-13",
-        "piece": "Poem 13"
-      },
-      {
-        "id": "catullus-14",
-        "piece": "Poem 14"
-      },
-      {
-        "id": "catullus-14b",
-        "piece": "Poem 14b"
-      },
-      {
-        "id": "catullus-15",
-        "piece": "Poem 15"
-      },
-      {
-        "id": "catullus-16",
-        "piece": "Poem 16"
-      },
-      {
-        "id": "catullus-17",
-        "piece": "Poem 17"
-      },
-      {
-        "id": "catullus-21",
-        "piece": "Poem 21"
-      },
-      {
-        "id": "catullus-22",
-        "piece": "Poem 22"
-      },
-      {
-        "id": "catullus-23",
-        "piece": "Poem 23"
-      },
-      {
-        "id": "catullus-24",
-        "piece": "Poem 24"
-      },
-      {
-        "id": "catullus-25",
-        "piece": "Poem 25"
-      },
-      {
-        "id": "catullus-26",
-        "piece": "Poem 26"
-      },
-      {
-        "id": "catullus-27",
-        "piece": "Poem 27"
-      },
-      {
-        "id": "catullus-28",
-        "piece": "Poem 28"
-      },
-      {
-        "id": "catullus-29",
-        "piece": "Poem 29"
-      },
-      {
-        "id": "catullus-30",
-        "piece": "Poem 30"
-      },
-      {
-        "id": "catullus-31",
-        "piece": "Poem 31"
-      },
-      {
-        "id": "catullus-32",
-        "piece": "Poem 32"
-      },
-      {
-        "id": "catullus-33",
-        "piece": "Poem 33"
-      },
-      {
-        "id": "catullus-34",
-        "piece": "Poem 34"
-      },
-      {
-        "id": "catullus-35",
-        "piece": "Poem 35"
-      },
-      {
-        "id": "catullus-36",
-        "piece": "Poem 36"
-      },
-      {
-        "id": "catullus-37",
-        "piece": "Poem 37"
-      },
-      {
-        "id": "catullus-38",
-        "piece": "Poem 38"
-      },
-      {
-        "id": "catullus-39",
-        "piece": "Poem 39"
-      },
-      {
-        "id": "catullus-40",
-        "piece": "Poem 40"
-      },
-      {
-        "id": "catullus-41",
-        "piece": "Poem 41"
-      },
-      {
-        "id": "catullus-42",
-        "piece": "Poem 42"
-      },
-      {
-        "id": "catullus-43",
-        "piece": "Poem 43"
-      },
-      {
-        "id": "catullus-44",
-        "piece": "Poem 44"
-      },
-      {
-        "id": "catullus-45",
-        "piece": "Poem 45"
-      },
-      {
-        "id": "catullus-46",
-        "piece": "Poem 46"
-      },
-      {
-        "id": "catullus-47",
-        "piece": "Poem 47"
-      },
-      {
-        "id": "catullus-48",
-        "piece": "Poem 48"
-      },
-      {
-        "id": "catullus-49",
-        "piece": "Poem 49"
-      },
-      {
-        "id": "catullus-50",
-        "piece": "Poem 50"
-      },
-      {
-        "id": "catullus-51",
-        "piece": "Poem 51"
-      },
-      {
-        "id": "catullus-52",
-        "piece": "Poem 52"
-      },
-      {
-        "id": "catullus-53",
-        "piece": "Poem 53"
-      },
-      {
-        "id": "catullus-54",
-        "piece": "Poem 54"
-      },
-      {
-        "id": "catullus-55",
-        "piece": "Poem 55"
-      },
-      {
-        "id": "catullus-56",
-        "piece": "Poem 56"
-      },
-      {
-        "id": "catullus-57",
-        "piece": "Poem 57"
-      },
-      {
-        "id": "catullus-58",
-        "piece": "Poem 58"
-      },
-      {
-        "id": "catullus-58b",
-        "piece": "Poem 58b"
-      },
-      {
-        "id": "catullus-59",
-        "piece": "Poem 59"
-      },
-      {
-        "id": "catullus-60",
-        "piece": "Poem 60"
-      },
-      {
-        "id": "catullus-61",
-        "piece": "Poem 61"
-      },
-      {
-        "id": "catullus-62",
-        "piece": "Poem 62"
-      },
-      {
-        "id": "catullus-63",
-        "piece": "Poem 63"
-      },
-      {
-        "id": "catullus-64",
-        "piece": "Poem 64"
-      },
-      {
-        "id": "catullus-65",
-        "piece": "Poem 65"
-      },
-      {
-        "id": "catullus-66",
-        "piece": "Poem 66"
-      },
-      {
-        "id": "catullus-67",
-        "piece": "Poem 67"
-      },
-      {
-        "id": "catullus-68",
-        "piece": "Poem 68"
-      },
-      {
-        "id": "catullus-69",
-        "piece": "Poem 69"
-      },
-      {
-        "id": "catullus-70",
-        "piece": "Poem 70"
-      },
-      {
-        "id": "catullus-71",
-        "piece": "Poem 71"
-      },
-      {
-        "id": "catullus-72",
-        "piece": "Poem 72"
-      },
-      {
-        "id": "catullus-73",
-        "piece": "Poem 73"
-      },
-      {
-        "id": "catullus-74",
-        "piece": "Poem 74"
-      },
-      {
-        "id": "catullus-75",
-        "piece": "Poem 75"
-      },
-      {
-        "id": "catullus-76",
-        "piece": "Poem 76"
-      },
-      {
-        "id": "catullus-77",
-        "piece": "Poem 77"
-      },
-      {
-        "id": "catullus-78",
-        "piece": "Poem 78"
-      },
-      {
-        "id": "catullus-78b",
-        "piece": "Poem 78b"
-      },
-      {
-        "id": "catullus-79",
-        "piece": "Poem 79"
-      },
-      {
-        "id": "catullus-80",
-        "piece": "Poem 80"
-      },
-      {
-        "id": "catullus-81",
-        "piece": "Poem 81"
-      },
-      {
-        "id": "catullus-82",
-        "piece": "Poem 82"
-      },
-      {
-        "id": "catullus-83",
-        "piece": "Poem 83"
-      },
-      {
-        "id": "catullus-84",
-        "piece": "Poem 84"
-      },
-      {
-        "id": "catullus-85",
-        "piece": "Poem 85"
-      },
-      {
-        "id": "catullus-86",
-        "piece": "Poem 86"
-      },
-      {
-        "id": "catullus-87",
-        "piece": "Poem 87"
-      },
-      {
-        "id": "catullus-88",
-        "piece": "Poem 88"
-      },
-      {
-        "id": "catullus-89",
-        "piece": "Poem 89"
-      },
-      {
-        "id": "catullus-90",
-        "piece": "Poem 90"
-      },
-      {
-        "id": "catullus-91",
-        "piece": "Poem 91"
-      },
-      {
-        "id": "catullus-92",
-        "piece": "Poem 92"
-      },
-      {
-        "id": "catullus-93",
-        "piece": "Poem 93"
-      },
-      {
-        "id": "catullus-94",
-        "piece": "Poem 94"
-      },
-      {
-        "id": "catullus-95",
-        "piece": "Poem 95"
-      },
-      {
-        "id": "catullus-95b",
-        "piece": "Poem 95b"
-      },
-      {
-        "id": "catullus-96",
-        "piece": "Poem 96"
-      },
-      {
-        "id": "catullus-97",
-        "piece": "Poem 97"
-      },
-      {
-        "id": "catullus-98",
-        "piece": "Poem 98"
-      },
-      {
-        "id": "catullus-99",
-        "piece": "Poem 99"
-      },
-      {
-        "id": "catullus-100",
-        "piece": "Poem 100"
-      },
-      {
-        "id": "catullus-101",
-        "piece": "Poem 101"
-      },
-      {
-        "id": "catullus-102",
-        "piece": "Poem 102"
-      },
-      {
-        "id": "catullus-103",
-        "piece": "Poem 103"
-      },
-      {
-        "id": "catullus-104",
-        "piece": "Poem 104"
-      },
-      {
-        "id": "catullus-105",
-        "piece": "Poem 105"
-      },
-      {
-        "id": "catullus-106",
-        "piece": "Poem 106"
-      },
-      {
-        "id": "catullus-107",
-        "piece": "Poem 107"
-      },
-      {
-        "id": "catullus-108",
-        "piece": "Poem 108"
-      },
-      {
-        "id": "catullus-109",
-        "piece": "Poem 109"
-      },
-      {
-        "id": "catullus-110",
-        "piece": "Poem 110"
-      },
-      {
-        "id": "catullus-111",
-        "piece": "Poem 111"
-      },
-      {
-        "id": "catullus-112",
-        "piece": "Poem 112"
-      },
-      {
-        "id": "catullus-113",
-        "piece": "Poem 113"
-      },
-      {
-        "id": "catullus-114",
-        "piece": "Poem 114"
-      },
-      {
-        "id": "catullus-115",
-        "piece": "Poem 115"
-      },
-      {
-        "id": "catullus-116",
-        "piece": "Poem 116"
       }
     ]
   },

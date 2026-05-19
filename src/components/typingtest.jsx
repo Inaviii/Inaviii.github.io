@@ -105,18 +105,31 @@ export default function TypingTest() {
       .then(indexData => {
         setLibraryIndex(indexData);
 
-        const firstAuthor = Object.keys(indexData)[0];
-        const firstWork = Object.keys(indexData[firstAuthor])[0];
-        const firstPieceId = indexData[firstAuthor][firstWork][0].id;
+        const savedAuthor = localStorage.getItem('selectedAuthor');
+        const savedWork = localStorage.getItem('selectedWork');
+        const savedPieceId = localStorage.getItem('selectedPieceId');
 
-        setSelectedAuthor(firstAuthor);
-        setSelectedWork(firstWork);
-        setSelectedPieceId(firstPieceId);
+        const hasSavedPiece = savedAuthor && indexData[savedAuthor] && 
+                              savedWork && indexData[savedAuthor][savedWork] && 
+                              savedPieceId && indexData[savedAuthor][savedWork].some(p => p.id === savedPieceId);
 
-        // trigger the fetch for the first author
-        fetchAuthorData(firstAuthor);
+        const initialAuthor = hasSavedPiece ? savedAuthor : (indexData['Catullus'] ? 'Catullus' : Object.keys(indexData)[0]);
+        const initialWork = hasSavedPiece ? savedWork : (indexData[initialAuthor]['Carmina'] ? 'Carmina' : Object.keys(indexData[initialAuthor])[0]);
+        const initialPieceId = hasSavedPiece ? savedPieceId : (indexData[initialAuthor][initialWork].some(p => p.id === 'catullus-1') ? 'catullus-1' : indexData[initialAuthor][initialWork][0].id);
+
+        setSelectedAuthor(initialAuthor);
+        setSelectedWork(initialWork);
+        setSelectedPieceId(initialPieceId);
+
+        fetchAuthorData(initialAuthor);
       });
   }, []);
+
+  useEffect(() => {
+    if (selectedAuthor) localStorage.setItem('selectedAuthor', selectedAuthor);
+    if (selectedWork) localStorage.setItem('selectedWork', selectedWork);
+    if (selectedPieceId) localStorage.setItem('selectedPieceId', selectedPieceId);
+  }, [selectedAuthor, selectedWork, selectedPieceId]);
 
   // helper to fetch heavy author data lazily
   const fetchAuthorData = (authorName) => {
