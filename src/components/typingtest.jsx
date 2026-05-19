@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const backgrounds = [
@@ -47,9 +47,33 @@ export default function TypingTest() {
   const [isFetchingAuthor, setIsFetchingAuthor] = useState(false);
 
   // time attack mode state
-  const [testMode, setTestMode] = useState('passage'); // 'passage' or 'time'
+  const [testMode, setTestMode] = useState('passage'); // 'passage', 'time', 'zen', 'multiplayer'
   const [timeLimit, setTimeLimit] = useState(60);
   const [timeRemaining, setTimeRemaining] = useState(null);
+
+  // multiplayer state
+  const [isQueueing, setIsQueueing] = useState(false);
+  const [matchId, setMatchId] = useState(null);
+  const [playerId, setPlayerId] = useState(() => {
+    let id = localStorage.getItem('latintype_pid');
+    if (!id) { id = 'p_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('latintype_pid', id); }
+    return id;
+  });
+  const [opponentId, setOpponentId] = useState(null);
+  const [matchStatus, setMatchStatus] = useState(null); // 'waiting', 'playing', 'finished'
+  const [myScore, setMyScore] = useState(0);
+  const [opponentScore, setOpponentScore] = useState(0);
+  const [multiplayerCountdown, setMultiplayerCountdown] = useState(null);
+  const [opponentProfile, setOpponentProfile] = useState(null);
+  const [eloChange, setEloChange] = useState(null);
+
+  // user profile state
+  const [userProfile, setUserProfile] = useState(null);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [tempUsername, setTempUsername] = useState('');
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [globalRankings, setGlobalRankings] = useState([]);
+  const [myGlobalRank, setMyGlobalRank] = useState(null);
 
   // cascading selection state
   const [selectedAuthor, setSelectedAuthor] = useState('');
@@ -131,6 +155,21 @@ export default function TypingTest() {
     if (selectedPieceId) localStorage.setItem('selectedPieceId', selectedPieceId);
   }, [selectedAuthor, selectedWork, selectedPieceId]);
 
+  // fetch user profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'users', playerId));
+        if (docSnap.exists()) {
+          setUserProfile(docSnap.data());
+        }
+      } catch (e) {
+        console.error("Error fetching profile", e);
+      }
+    };
+    fetchProfile();
+  }, [playerId]);
+
   // helper to fetch heavy author data lazily
   const fetchAuthorData = (authorName) => {
     setIsFetchingAuthor(true);
@@ -187,6 +226,193 @@ export default function TypingTest() {
         setActiveAuthorData(data);
         setIsFetchingAuthor(false);
       });
+  };
+
+  const handleMultiplayerQueue = async () => {
+    if (!libraryIndex) return;
+    
+    if (!userProfile) {
+      setShowUsernamePrompt(true);
+      return;
+    }
+
+    setIsQueueing(true);
+    setTestMode('multiplayer');
+    setMatchStatus('waiting');
+    setOpponentProfile(null);
+    setEloChange(null);
+    resetTest();
+
+    try {
+      const matchesRef = collection(db, 'matches');
+      const q = query(matchesRef, where('status', '==', 'waiting'));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const matchDoc = querySnapshot.docs[0];
+        const matchData = matchDoc.data();
+        
+        await updateDoc(doc(db, 'matches', matchDoc.id), {
+          status: 'playing',
+          [`players.${playerId}`]: { score: 0, wpm: 0, acc: 100, name: userProfile.name, elo: userProfile.elo }
+        });
+
+        setMatchId(matchDoc.id);
+        const opponent = Object.keys(matchData.players)[0];
+        setOpponentId(opponent);
+        
+        setSelectedAuthor(matchData.author);
+        setSelectedWork(matchData.work);
+        setSelectedPieceId(matchData.pieceId);
+        fetchAuthorData(matchData.author);
+
+      } else {
+        const authors = Object.keys(libraryIndex);
+        const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
+        const works = Object.keys(libraryIndex[randomAuthor]);
+        const randomWork = works[Math.floor(Math.random() * works.length)];
+        const randomPieces = libraryIndex[randomAuthor][randomWork];
+        const randomPiece = randomPieces[Math.floor(Math.random() * randomPieces.length)];
+
+        setSelectedAuthor(randomAuthor);
+        setSelectedWork(randomWork);
+        setSelectedPieceId(randomPiece.id);
+        fetchAuthorData(randomAuthor);
+
+        const newMatch = await addDoc(matchesRef, {
+          status: 'waiting',
+          timeLimit: 30,
+          author: randomAuthor,
+          work: randomWork,
+          pieceId: randomPiece.id,
+          players: {
+            [playerId]: { score: 0, wpm: 0, acc: 100, name: userProfile.name, elo: userProfile.elo }
+          },
+          startTime: null
+        });
+
+        setMatchId(newMatch.id);
+      }
+    } catch (e) {
+      console.error(e);
+      setIsQueueing(false);
+      setTestMode('passage');
+    }
+  };
+
+  // Listen to match changes
+  useEffect(() => {
+    if (!matchId || testMode !== 'multiplayer') return;
+    const unsub = onSnapshot(doc(db, 'matches', matchId), (document) => {
+      if (document.exists()) {
+        const data = document.data();
+        if (data.status === 'playing' && matchStatus === 'waiting') {
+          setIsQueueing(false);
+          setMatchStatus('playing');
+          
+          if (!opponentId) {
+             const keys = Object.keys(data.players);
+             const oppId = keys.find(k => k !== playerId);
+             setOpponentId(oppId);
+          }
+          setMultiplayerCountdown(3);
+        }
+
+        if (data.status === 'playing') {
+          const keys = Object.keys(data.players);
+          const oppId = keys.find(k => k !== playerId);
+          if (oppId && data.players[oppId]) {
+            setOpponentScore(data.players[oppId].score || 0);
+            if (!opponentProfile) {
+              setOpponentProfile({ name: data.players[oppId].name || 'Opponent', elo: data.players[oppId].elo || 1200 });
+            }
+          }
+        }
+      }
+    });
+    return () => unsub();
+  }, [matchId, matchStatus, playerId, opponentId, testMode, opponentProfile]);
+
+  // Match end compute Elo
+  useEffect(() => {
+    if (isFinished && testMode === 'multiplayer' && userProfile && opponentProfile && eloChange === null) {
+       const calcElo = async () => {
+         const myExpected = 1 / (1 + Math.pow(10, (opponentProfile.elo - userProfile.elo) / 400));
+         const actualScore = myScore > opponentScore ? 1 : myScore < opponentScore ? 0 : 0.5;
+         const change = Math.round(32 * (actualScore - myExpected));
+         setEloChange(change);
+         
+         const newElo = Math.max(0, userProfile.elo + change);
+         const newWins = userProfile.wins + (actualScore === 1 ? 1 : 0);
+         const newLosses = userProfile.losses + (actualScore === 0 ? 1 : 0);
+         const newDraws = (userProfile.draws || 0) + (actualScore === 0.5 ? 1 : 0);
+         
+         setUserProfile(prev => ({ ...prev, elo: newElo, wins: newWins, losses: newLosses, draws: newDraws }));
+         
+         try {
+           await updateDoc(doc(db, 'users', playerId), {
+             elo: newElo,
+             wins: newWins,
+             losses: newLosses,
+             draws: newDraws
+           });
+         } catch(e) { console.error(e); }
+       };
+       calcElo();
+    }
+  }, [isFinished, testMode, userProfile, opponentProfile, myScore, opponentScore, eloChange, playerId]);
+
+  // multiplayer countdown
+  useEffect(() => {
+    if (multiplayerCountdown === null) return;
+    if (multiplayerCountdown > 0) {
+      const timer = setTimeout(() => setMultiplayerCountdown(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setMultiplayerCountdown(null);
+      setStartTime(Date.now());
+      setTimeRemaining(30);
+    }
+  }, [multiplayerCountdown]);
+
+  const handleSetUsername = async () => {
+    if (!tempUsername.trim()) return;
+    const cleanName = tempUsername.trim();
+    const newProfile = {
+      name: cleanName,
+      elo: 1200,
+      wins: 0,
+      losses: 0,
+      draws: 0
+    };
+    try {
+      await setDoc(doc(db, 'users', playerId), newProfile);
+      setUserProfile(newProfile);
+      setShowUsernamePrompt(false);
+    } catch (e) {
+      console.error("Failed to save profile", e);
+    }
+  };
+
+  const fetchLeaderboard = async () => {
+    setShowLeaderboard(true);
+    try {
+      const q = query(collection(db, 'users'), orderBy('elo', 'desc'), limit(10));
+      const snap = await getDocs(q);
+      const ranks = snap.docs.map((d, i) => ({ id: d.id, rank: i + 1, ...d.data() }));
+      setGlobalRankings(ranks);
+
+      const amITop10 = ranks.some(r => r.id === playerId);
+      if (!amITop10 && userProfile) {
+        const higherQ = query(collection(db, 'users'), where('elo', '>', userProfile.elo));
+        const higherSnap = await getDocs(higherQ);
+        setMyGlobalRank(higherSnap.size + 1);
+      } else {
+        setMyGlobalRank(null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // reset engine helper
@@ -260,22 +486,34 @@ export default function TypingTest() {
       const timeElapsedMs = Date.now() - startTime;
       const timeElapsedMin = timeElapsedMs / 60000;
 
-      setStats(prev => ({
-        ...prev,
-        wpm: Math.max(0, Math.round((prev.correctKeys / 5) / timeElapsedMin)),
-        acc: prev.totalKeys > 0 ? Math.round((prev.correctKeys / prev.totalKeys) * 100) : 100
-      }));
+      setStats(prev => {
+        const newWpm = Math.max(0, Math.round((prev.correctKeys / 5) / timeElapsedMin));
+        const newAcc = prev.totalKeys > 0 ? Math.round((prev.correctKeys / prev.totalKeys) * 100) : 100;
 
-      if (testMode === 'time') {
-        const remaining = Math.max(0, timeLimit - Math.floor(timeElapsedMs / 1000));
+        if (testMode === 'multiplayer' && matchId && playerId) {
+          const score = (newWpm * (newAcc / 100)) * (timeElapsedMs / 1000);
+          setMyScore(score);
+          updateDoc(doc(db, 'matches', matchId), {
+            [`players.${playerId}.score`]: score,
+            [`players.${playerId}.wpm`]: newWpm,
+            [`players.${playerId}.acc`]: newAcc
+          }).catch(e => console.error(e));
+        }
+
+        return { ...prev, wpm: newWpm, acc: newAcc };
+      });
+
+      if (testMode === 'time' || testMode === 'multiplayer') {
+        const tLimit = testMode === 'multiplayer' ? 30 : timeLimit;
+        const remaining = Math.max(0, tLimit - Math.floor(timeElapsedMs / 1000));
         setTimeRemaining(remaining);
         if (remaining <= 0) {
           setIsFinished(true);
         }
       }
-    }, 500);
+    }, 1000);
     return () => clearInterval(interval);
-  }, [startTime, isFinished, testMode, timeLimit]);
+  }, [startTime, isFinished, testMode, timeLimit, matchId, playerId]);
 
   // lofi audio control
   useEffect(() => {
@@ -299,7 +537,28 @@ export default function TypingTest() {
   };
 
   const handleKeyDown = (e) => {
-    if (isFinished || isFetchingAuthor || isAppLoading) return;
+    if (isFinished && testMode === 'zen' && e.key === ' ') {
+      e.preventDefault();
+      const pieces = libraryIndex[selectedAuthor][selectedWork];
+      const currentIndex = pieces.findIndex(p => p.id === selectedPieceId);
+      if (currentIndex !== -1 && currentIndex + 1 < pieces.length) {
+        setSelectedPieceId(pieces[currentIndex + 1].id);
+      } else {
+        const authors = Object.keys(libraryIndex);
+        const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
+        const works = Object.keys(libraryIndex[randomAuthor]);
+        const randomWork = works[Math.floor(Math.random() * works.length)];
+        const randomPieces = libraryIndex[randomAuthor][randomWork];
+        const randomPiece = randomPieces[Math.floor(Math.random() * randomPieces.length)];
+        setSelectedAuthor(randomAuthor);
+        setSelectedWork(randomWork);
+        setSelectedPieceId(randomPiece.id);
+        fetchAuthorData(randomAuthor);
+      }
+      return;
+    }
+
+    if (isFinished || isFetchingAuthor || isAppLoading || multiplayerCountdown !== null || isQueueing) return;
 
     if (e.key.length === 1 || e.key === 'Backspace' || e.key === ' ') playClickSound();
 
@@ -381,7 +640,7 @@ export default function TypingTest() {
     >
       {bgImage !== 'none' && (
         <div
-          className="fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-opacity duration-300"
+          className={`fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-all duration-500 ${testMode === 'zen' ? 'blur-md scale-105' : ''}`}
           style={{ backgroundImage: `url(${bgImage})`, opacity: bgOpacity }}
         />
       )}
@@ -397,7 +656,7 @@ export default function TypingTest() {
               latin<span className="text-mt-main">type</span>
             </h1>
 
-            <div className={`flex gap-6 mt-6 transition-opacity duration-500 ${startTime ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`flex gap-6 mt-6 transition-opacity duration-500 ${(startTime && testMode !== 'zen') ? 'opacity-100' : 'opacity-0'}`}>
               <div className="flex flex-col">
                 <span className="text-[0.65rem] uppercase tracking-widest text-mt-sub/70 font-bold mb-1">wpm</span>
                 <span className="text-4xl font-light text-mt-text leading-none">{stats.wpm}</span>
@@ -422,6 +681,12 @@ export default function TypingTest() {
             {/*mode toggle*/}
             <div className="flex bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg mb-2 self-end">
               <button
+                onClick={(e) => { e.stopPropagation(); setTestMode('zen'); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'zen' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Zen
+              </button>
+              <button
                 onClick={(e) => { e.stopPropagation(); setTestMode('passage'); }}
                 className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'passage' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
               >
@@ -432,6 +697,18 @@ export default function TypingTest() {
                 className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'time' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
               >
                 Time Attack
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleMultiplayerQueue(); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'multiplayer' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Multiplayer (30s)
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); fetchLeaderboard(); }}
+                className="py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 text-mt-main hover:bg-mt-main/20 ml-2"
+              >
+                🏆 Rankings
               </button>
             </div>
 
@@ -629,6 +906,44 @@ export default function TypingTest() {
       {/* viewport container */}
       <div className="relative z-10 w-full max-w-[1600px] flex flex-col items-center px-4 justify-center flex-grow mt-32 sm:mt-0">
 
+        {testMode === 'multiplayer' && (
+          <div className="w-full mb-4 bg-mt-bg/80 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-mt-sub/20 relative">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-mt-main font-bold text-sm tracking-widest uppercase">
+                {userProfile ? `${userProfile.name} (${userProfile.elo})` : 'You'} - {Math.round(myScore)} pts
+              </span>
+              <span className="text-mt-error font-bold text-sm tracking-widest uppercase">
+                {opponentProfile ? `${opponentProfile.name} (${opponentProfile.elo})` : 'Opponent'} - {Math.round(opponentScore)} pts
+              </span>
+            </div>
+            
+            <div className="w-full h-10 bg-mt-sub-alt/50 rounded-full mb-4 relative flex items-center shadow-inner">
+               <div className="absolute left-0 h-full bg-mt-main/20 rounded-full transition-all duration-1000 ease-linear" style={{ width: `${Math.min(100, Math.max(0, (myScore / 3600) * 100))}%` }} />
+               <div className="absolute z-10 transition-all duration-1000 ease-linear flex items-center" style={{ left: `calc(${Math.min(100, Math.max(0, (myScore / 3600) * 100))}% - 12px)` }}>
+                 <span className="text-3xl drop-shadow-md transform scale-x-[-1]">🏇</span>
+               </div>
+            </div>
+
+            <div className="w-full h-10 bg-mt-sub-alt/50 rounded-full relative flex items-center shadow-inner">
+               <div className="absolute left-0 h-full bg-mt-error/20 rounded-full transition-all duration-1000 ease-linear" style={{ width: `${Math.min(100, Math.max(0, (opponentScore / 3600) * 100))}%` }} />
+               <div className="absolute z-10 transition-all duration-1000 ease-linear flex items-center" style={{ left: `calc(${Math.min(100, Math.max(0, (opponentScore / 3600) * 100))}% - 12px)` }}>
+                 <span className="text-3xl drop-shadow-md grayscale opacity-80 transform scale-x-[-1]">🏇</span>
+               </div>
+            </div>
+
+            {isQueueing && (
+              <div className="absolute inset-0 bg-mt-bg/90 backdrop-blur-md rounded-lg flex items-center justify-center z-20">
+                <span className="text-mt-main animate-pulse font-bold tracking-widest uppercase">Finding Opponent...</span>
+              </div>
+            )}
+            {multiplayerCountdown !== null && (
+              <div className="absolute inset-0 bg-mt-bg/90 backdrop-blur-md rounded-lg flex items-center justify-center z-20">
+                <span className="text-6xl text-mt-main font-bold">{multiplayerCountdown > 0 ? multiplayerCountdown : 'GO!'}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <input
           ref={inputRef}
           type="text"
@@ -651,69 +966,89 @@ export default function TypingTest() {
 
           {/*completion screen*/}
           <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-mt-bg/80 backdrop-blur-md transition-opacity duration-700 ${isFinished ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <h2 className="text-3xl font-bold text-mt-main mb-2">
-              {testMode === 'time' ? (timeRemaining <= 0 ? "Time's Up!" : "Passage Completed") : "Passage Completed"}
+            <h2 className={`text-5xl font-bold mb-2 ${testMode === 'multiplayer' ? (myScore > opponentScore ? 'text-mt-main drop-shadow-[0_0_15px_rgba(var(--mt-main-rgb),0.5)]' : myScore < opponentScore ? 'text-mt-error' : 'text-mt-sub') : 'text-mt-main'}`}>
+              {testMode === 'multiplayer' ? (myScore > opponentScore ? "VICTORY!" : myScore < opponentScore ? "DEFEAT" : "DRAW") : testMode === 'time' ? (timeRemaining <= 0 ? "Time's Up!" : "Passage Completed") : testMode === 'zen' ? "Zen Flow" : "Passage Completed"}
             </h2>
-            <div className="flex gap-12 my-8">
-              <div className="flex flex-col items-center">
-                <span className="text-sm uppercase tracking-widest text-mt-sub font-bold">WPM</span>
-                <span className="text-6xl font-light text-mt-text">{stats.wpm}</span>
+            {testMode === 'multiplayer' && eloChange !== null && (
+              <div className={`text-2xl font-bold mb-4 ${eloChange >= 0 ? 'text-mt-main' : 'text-mt-error'}`}>
+                {eloChange >= 0 ? '+' : ''}{eloChange} Elo
               </div>
-              <div className="flex flex-col items-center">
-                <span className="text-sm uppercase tracking-widest text-mt-sub font-bold">Accuracy</span>
-                <span className="text-6xl font-light text-mt-text">{stats.acc}%</span>
-              </div>
-            </div>
+            )}
 
-            <div className="flex flex-col items-center mb-8 w-full max-w-sm">
-              <input
-                type="text"
-                placeholder="Enter name for leaderboard..."
-                className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center"
-                maxLength={20}
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                disabled={scoreSaved || isSaving}
-              />
-              <button
-                className={`w-full font-bold py-2 rounded-lg transition-colors ${scoreSaved ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-main text-mt-bg hover:bg-opacity-80'}`}
-                disabled={scoreSaved || isSaving}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  if (stats.wpm === 0) return;
-                  setIsSaving(true);
-                  try {
-                    await addDoc(collection(db, "scores"), {
-                      name: (playerName || "Anonymous").trim().substring(0, 20),
-                      wpm: stats.wpm,
-                      acc: stats.acc,
-                      mode: testMode,
-                      duration: testMode === 'time' ? timeLimit : null,
-                      passage: testMode === 'passage' ? `${selectedAuthor} - ${selectedWork}` : null,
-                      date: new Date().toISOString()
-                    });
-                    setScoreSaved(true);
-                  } catch (err) {
-                    console.error(err);
-                  } finally {
-                    setIsSaving(false);
-                  }
-                }}
-              >
-                {isSaving ? "Saving..." : (scoreSaved ? "Score Saved!" : "Submit Score")}
-              </button>
-            </div>
+            {testMode === 'zen' ? (
+              <div className="mt-8 text-mt-sub animate-pulse text-xl">Press SPACE to continue to the next passage...</div>
+            ) : (
+              <>
+                <div className="flex gap-12 my-8">
+                  <div className="flex flex-col items-center">
+                    <span className="text-sm uppercase tracking-widest text-mt-sub font-bold">WPM</span>
+                    <span className="text-6xl font-light text-mt-text">{stats.wpm}</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-sm uppercase tracking-widest text-mt-sub font-bold">Accuracy</span>
+                    <span className="text-6xl font-light text-mt-text">{stats.acc}%</span>
+                  </div>
+                </div>
 
-            <div className="flex gap-4">
-              <button className="px-8 py-3 bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg transition-colors duration-200 rounded-lg font-bold text-lg" onClick={(e) => { e.stopPropagation(); resetTest(); }}>
-                Restart Test
-              </button>
-              {testMode === 'time' && (
-                <button className="px-8 py-3 bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg transition-colors duration-200 rounded-lg font-bold text-lg" onClick={(e) => { e.stopPropagation(); loadRandomTimeAttack(); }}>
-                  Next Random
-                </button>
-              )}
-            </div>
+                {testMode !== 'multiplayer' && (
+                  <div className="flex flex-col items-center mb-8 w-full max-w-sm">
+                    <input
+                      type="text"
+                      placeholder="Enter name for leaderboard..."
+                      className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center"
+                      maxLength={20}
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      disabled={scoreSaved || isSaving}
+                    />
+                    <button
+                      className={`w-full font-bold py-2 rounded-lg transition-colors ${scoreSaved ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-main text-mt-bg hover:bg-opacity-80'}`}
+                      disabled={scoreSaved || isSaving}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!playerName.trim() || isSaving || stats.wpm === 0) return;
+                        setIsSaving(true);
+                        try {
+                          await addDoc(collection(db, "leaderboard"), {
+                            name: playerName.trim(),
+                            wpm: stats.wpm,
+                            acc: stats.acc,
+                            mode: testMode,
+                            timestamp: new Date()
+                          });
+                          setScoreSaved(true);
+                        } catch (err) {
+                          console.error(err);
+                        } finally {
+                          setIsSaving(false);
+                        }
+                      }}
+                    >
+                      {isSaving ? "Saving..." : (scoreSaved ? "Score Saved!" : "Submit Score")}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-4">
+                  {testMode === 'multiplayer' ? (
+                    <button className="px-8 py-3 bg-mt-main text-mt-bg hover:bg-opacity-80 transition-colors duration-200 rounded-lg font-bold text-lg shadow-lg" onClick={(e) => { e.stopPropagation(); handleMultiplayerQueue(); }}>
+                      Queue Again
+                    </button>
+                  ) : (
+                    <button className="px-8 py-3 bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg transition-colors duration-200 rounded-lg font-bold text-lg" onClick={(e) => { e.stopPropagation(); resetTest(); }}>
+                      Restart Test
+                    </button>
+                  )}
+                  {testMode === 'time' && (
+                    <button className="px-8 py-3 bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg transition-colors duration-200 rounded-lg font-bold text-lg" onClick={(e) => { e.stopPropagation(); loadRandomTimeAttack(); }}>
+                      Next Random
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+            
+            <span className="text-mt-sub text-sm mt-8">Press TAB + ENTER to restart</span>
           </div>
 
           <div
@@ -786,6 +1121,71 @@ export default function TypingTest() {
           Click anywhere to focus. Press <kbd className="bg-mt-sub-alt text-mt-text px-2 py-1 rounded mx-1">Space</kbd> to advance.
         </div>
       </div>
+      {/* Modals */}
+      {showUsernamePrompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-mt-bg/80 backdrop-blur-md">
+          <div className="bg-mt-sub-alt p-8 rounded-xl shadow-2xl border border-mt-sub/20 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-mt-main mb-4 uppercase tracking-widest text-center">Ranked Multiplayer</h2>
+            <p className="text-mt-sub text-sm mb-6 text-center">Enter a username to establish your Elo rating and compete on the global leaderboard.</p>
+            <input 
+              type="text" 
+              maxLength={15} 
+              autoFocus
+              className="w-full bg-mt-bg border border-mt-sub/30 rounded-lg px-4 py-3 text-mt-text outline-none focus:border-mt-main transition-colors mb-4 text-center text-lg font-bold"
+              placeholder="Username" 
+              value={tempUsername} 
+              onChange={e => setTempUsername(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && handleSetUsername()}
+            />
+            <div className="flex gap-4">
+              <button onClick={() => setShowUsernamePrompt(false)} className="flex-1 py-3 bg-mt-bg text-mt-sub hover:text-mt-text rounded-lg font-bold transition-colors">Cancel</button>
+              <button onClick={handleSetUsername} className="flex-1 py-3 bg-mt-main text-mt-bg hover:bg-opacity-80 rounded-lg font-bold shadow-lg transition-colors">Begin</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLeaderboard && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-mt-bg/80 backdrop-blur-md" onClick={() => setShowLeaderboard(false)}>
+          <div className="bg-mt-sub-alt p-8 rounded-xl shadow-2xl border border-mt-sub/20 max-w-lg w-full mx-4 relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowLeaderboard(false)} className="absolute top-4 right-4 text-mt-sub hover:text-mt-error text-xl font-bold">×</button>
+            <h2 className="text-3xl font-bold text-mt-main mb-6 uppercase tracking-widest text-center flex items-center justify-center gap-2">
+              🏆 Top 10 Typists
+            </h2>
+            
+            <div className="flex flex-col gap-2 mb-6">
+              {globalRankings.map((user, idx) => (
+                <div key={user.id} className={`flex items-center justify-between p-3 rounded-lg ${user.id === playerId ? 'bg-mt-main/20 border border-mt-main/50' : 'bg-mt-bg'} shadow-sm`}>
+                  <div className="flex items-center gap-4">
+                    <span className={`font-bold w-6 text-center ${idx < 3 ? 'text-mt-main' : 'text-mt-sub'}`}>#{user.rank}</span>
+                    <span className="font-bold text-mt-text">{user.name}</span>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <span className="text-xs text-mt-sub font-mono">{user.wins}W - {user.losses}L</span>
+                    <span className="font-bold text-mt-main w-12 text-right">{user.elo}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {myGlobalRank && userProfile && (
+              <div className="mt-4 border-t border-mt-sub/20 pt-4 flex flex-col items-center">
+                <span className="text-mt-sub text-xs uppercase tracking-widest mb-2">Your Current Rank</span>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-mt-main/20 border border-mt-main/50 shadow-sm w-full">
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold w-6 text-center text-mt-main">#{myGlobalRank}</span>
+                    <span className="font-bold text-mt-text">{userProfile.name}</span>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <span className="text-xs text-mt-sub font-mono">{userProfile.wins}W - {userProfile.losses}L</span>
+                    <span className="font-bold text-mt-main w-12 text-right">{userProfile.elo}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
