@@ -1211,6 +1211,16 @@ export default function TypingTest() {
           Click anywhere to focus. Press <kbd className="bg-mt-sub-alt text-mt-text px-2 py-1 rounded mx-1">Space</kbd> to advance.
         </div>
       </div>
+      
+      {userProfile && (
+        <div className="fixed bottom-4 left-4 z-40 bg-mt-bg/80 backdrop-blur-md border border-mt-sub/20 rounded-full px-4 py-2 flex items-center gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.2)] hover:bg-mt-sub-alt/50 transition-colors cursor-default">
+          <div className="w-2 h-2 rounded-full bg-mt-main animate-pulse"></div>
+          <span className="font-bold text-mt-text text-sm tracking-wide">{userProfile.name}</span>
+          <span className="text-mt-main font-mono text-sm">{userProfile.elo}</span>
+          <span className="text-mt-sub text-xs font-mono border-l border-mt-sub/30 pl-3">{userProfile.wins}W - {userProfile.losses}L</span>
+        </div>
+      )}
+
       {/* Modals */}
       {showUsernamePrompt && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-mt-bg/80 backdrop-blur-md">
