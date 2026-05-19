@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
 const fonts = [
-  { name: 'Coliseum', value: 'Coliseum' },
-  { name: 'Garamond', value: 'EB Garamond, serif' },
-  { name: 'Roboto', value: 'Roboto, sans-serif' },
-  { name: 'Syne Mono', value: 'Syne Mono, monospace' }
+  { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
+  { name: "Courier Prime", value: '"Courier Prime", monospace' },
+  { name: "Syne Mono", value: '"Syne Mono", monospace' },
+  { name: "Courier New", value: '"Courier New", Courier, monospace' },
+  { name: "Consolas", value: 'Consolas, monospace' },
+  { name: "Lucida Console", value: '"Lucida Console", Monaco, monospace' },
 ];
 
 export default function ReadMode() {
@@ -26,7 +28,7 @@ export default function ReadMode() {
   // styling
   const [bgImage, setBgImage] = useState(() => localStorage.getItem('bgImage') || 'none');
   const [bgOpacity, setBgOpacity] = useState(() => parseFloat(localStorage.getItem('bgOpacity')) || 1);
-  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('fontFamily') || 'Coliseum');
+  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('fontFamily') || '"Cutive Mono", monospace');
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('fontSize')) || 24);
 
   // fetch index on mount
@@ -97,6 +99,9 @@ export default function ReadMode() {
     const pieceMeta = libraryIndex[selectedAuthor][selectedWork].find(p => p.id === selectedPieceId);
     if (!pieceMeta) return;
 
+    const piece = activeAuthorData.find(p => p.id === selectedPieceId);
+    if (!piece) return;
+
     if (loadedPieceId !== selectedPieceId) {
       setLoadedPieceId(selectedPieceId);
       setLineRange({ start: 1, end: pieceMeta.lines, max: pieceMeta.lines });
@@ -105,7 +110,8 @@ export default function ReadMode() {
     const startIdx = Math.max(0, lineRange.start - 1);
     const endIdx = Math.min(pieceMeta.lines, lineRange.end);
 
-    const activeLines = activeAuthorData[selectedPieceId]?.lines?.slice(startIdx, endIdx) || [];
+    const rawLines = piece.text.split('\n');
+    const activeLines = rawLines.slice(startIdx, endIdx);
     setLines(activeLines);
   }, [libraryIndex, activeAuthorData, selectedPieceId, lineRange.start, lineRange.end, isFetchingAuthor, selectedAuthor, selectedWork]);
 
@@ -214,10 +220,10 @@ export default function ReadMode() {
           <div className="text-center text-mt-sub animate-pulse py-12">Fetching Text...</div>
         ) : (
           <div className="text-mt-text whitespace-pre-wrap leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
-            {lines.map((line, i) => (
+            {lines.map((lineStr, i) => (
               <p key={i} className={`py-1 ${i % 5 === 4 ? 'mb-4' : ''}`}>
                 <span className="inline-block w-8 text-right mr-4 text-mt-sub/40 text-xs font-mono select-none">{lineRange.start + i}</span>
-                {line.text}
+                {lineStr}
               </p>
             ))}
           </div>
