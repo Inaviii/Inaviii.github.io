@@ -678,7 +678,7 @@ export default function TypingTest() {
 
   return (
     <div
-      className="min-h-screen bg-mt-bg text-mt-text flex flex-col items-center justify-center p-8 tracking-wide relative"
+      className="min-h-screen bg-mt-bg text-mt-text flex flex-col items-center justify-start p-4 sm:p-8 tracking-wide relative"
       onClick={focusInput}
       style={{ fontFamily: fontFamily }}
     >
@@ -691,9 +691,9 @@ export default function TypingTest() {
 
       <audio ref={audioRef} src="/lofi.mp3" loop />
 
-      {/* absolute header so viewport can perfectly center */}
-      <div className="absolute top-0 left-0 right-0 pt-4 sm:pt-8 px-4 sm:px-8 z-20 w-full flex justify-center pointer-events-none">
-        <div className="w-full max-w-[1600px] flex justify-between items-start pointer-events-auto">
+      {/* Header */}
+      <div className="w-full z-20 flex justify-center shrink-0 mb-8 sm:mb-0">
+        <div className="w-full max-w-[1600px] flex flex-col sm:flex-row sm:justify-between items-start gap-4 sm:gap-0 pointer-events-auto">
 
           <div className="flex flex-col">
             <h1 className="text-2xl font-bold text-mt-text tracking-tighter mt-1">
@@ -948,7 +948,7 @@ export default function TypingTest() {
       </div>
 
       {/* viewport container */}
-      <div className="relative z-10 w-full max-w-[1600px] flex flex-col items-center px-4 justify-center flex-grow mt-32 sm:mt-0">
+      <div className="relative z-10 w-full max-w-[1600px] flex flex-col items-center px-4 justify-center flex-grow">
 
         {testMode === 'multiplayer' && (
           <div className="w-full mb-4 bg-mt-bg/80 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-mt-sub/20 relative">
