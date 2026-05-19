@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const backgrounds = [
@@ -61,6 +61,7 @@ export default function TypingTest() {
   });
   const [opponentId, setOpponentId] = useState(null);
   const [matchStatus, setMatchStatus] = useState(null); // 'waiting', 'playing', 'finished'
+  const [matchFoundData, setMatchFoundData] = useState(null);
   const [myScore, setMyScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
   const [multiplayerCountdown, setMultiplayerCountdown] = useState(null);
@@ -239,6 +240,7 @@ export default function TypingTest() {
     setIsQueueing(true);
     setTestMode('multiplayer');
     setMatchStatus('waiting');
+    setMatchFoundData(null);
     setOpponentProfile(null);
     setEloChange(null);
     resetTest();
@@ -248,31 +250,45 @@ export default function TypingTest() {
       const q = query(matchesRef, where('status', '==', 'waiting'));
       const querySnapshot = await getDocs(q);
 
-      let matchToJoin = null;
+      let joinedMatchId = null;
+      let opponentKey = null;
+      let mData = null;
+
       for (const d of querySnapshot.docs) {
         if (!d.data().players || !d.data().players[playerId]) {
-          matchToJoin = d;
-          break;
+          try {
+            await runTransaction(db, async (transaction) => {
+              const matchDocRef = doc(db, 'matches', d.id);
+              const matchSnap = await transaction.get(matchDocRef);
+              if (!matchSnap.exists()) throw "Match does not exist!";
+              
+              const currentData = matchSnap.data();
+              if (currentData.status !== 'waiting') throw "Match is no longer waiting!";
+              
+              transaction.update(matchDocRef, {
+                status: 'found',
+                [`players.${playerId}`]: { score: 0, wpm: 0, acc: 100, name: userProfile.name, elo: userProfile.elo, accepted: false }
+              });
+              
+              joinedMatchId = d.id;
+              opponentKey = Object.keys(currentData.players)[0];
+              mData = currentData;
+            });
+            break; 
+          } catch (error) {
+            console.log("Transaction failed, trying next available match...", error);
+          }
         }
       }
 
-      if (matchToJoin) {
-        const matchDoc = matchToJoin;
-        const matchData = matchDoc.data();
+      if (joinedMatchId) {
+        setMatchId(joinedMatchId);
+        setOpponentId(opponentKey);
         
-        await updateDoc(doc(db, 'matches', matchDoc.id), {
-          status: 'playing',
-          [`players.${playerId}`]: { score: 0, wpm: 0, acc: 100, name: userProfile.name, elo: userProfile.elo }
-        });
-
-        setMatchId(matchDoc.id);
-        const opponent = Object.keys(matchData.players)[0];
-        setOpponentId(opponent);
-        
-        setSelectedAuthor(matchData.author);
-        setSelectedWork(matchData.work);
-        setSelectedPieceId(matchData.pieceId);
-        fetchAuthorData(matchData.author);
+        setSelectedAuthor(mData.author);
+        setSelectedWork(mData.work);
+        setSelectedPieceId(mData.pieceId);
+        fetchAuthorData(mData.author);
 
       } else {
         const authors = Object.keys(libraryIndex);
@@ -287,16 +303,15 @@ export default function TypingTest() {
         setSelectedPieceId(randomPiece.id);
         fetchAuthorData(randomAuthor);
 
-        const newMatch = await addDoc(matchesRef, {
+        const newMatch = await addDoc(collection(db, 'matches'), {
           status: 'waiting',
-          timeLimit: 30,
           author: randomAuthor,
           work: randomWork,
           pieceId: randomPiece.id,
+          hostId: playerId,
           players: {
-            [playerId]: { score: 0, wpm: 0, acc: 100, name: userProfile.name, elo: userProfile.elo }
-          },
-          startTime: null
+            [playerId]: { score: 0, wpm: 0, acc: 100, name: userProfile.name, elo: userProfile.elo, accepted: false }
+          }
         });
 
         setMatchId(newMatch.id);
@@ -314,8 +329,38 @@ export default function TypingTest() {
     const unsub = onSnapshot(doc(db, 'matches', matchId), (document) => {
       if (document.exists()) {
         const data = document.data();
+        if (data.status === 'found') {
+          setIsQueueing(false);
+          const keys = Object.keys(data.players);
+          const oppId = keys.find(k => k !== playerId);
+          if (oppId) {
+            if (!opponentId) setOpponentId(oppId);
+            
+            setMatchFoundData({
+              myAccepted: data.players[playerId]?.accepted || false,
+              oppAccepted: data.players[oppId]?.accepted || false,
+              oppName: data.players[oppId]?.name || 'Opponent',
+              oppElo: data.players[oppId]?.elo || 1200
+            });
+
+            if (data.players[playerId]?.accepted && data.players[oppId]?.accepted && data.hostId === playerId) {
+              updateDoc(doc(db, 'matches', matchId), { status: 'playing' }).catch(console.error);
+            }
+          }
+        }
+
+        if (data.status === 'cancelled' && matchStatus === 'waiting') {
+           setMatchFoundData(null);
+           if (data.declinedBy !== playerId) {
+             setTimeout(() => {
+               handleMultiplayerQueue();
+             }, 100);
+           }
+        }
+
         if (data.status === 'playing' && matchStatus === 'waiting') {
           setIsQueueing(false);
+          setMatchFoundData(null);
           setMatchStatus('playing');
           
           if (!opponentId) {
@@ -933,10 +978,46 @@ export default function TypingTest() {
                   setTestMode('passage');
                   if (matchId) {
                     try {
-                       await deleteDoc(doc(db, 'matches', matchId));
+                       await updateDoc(doc(db, 'matches', matchId), { status: 'cancelled', declinedBy: playerId });
                     } catch(e) {}
                   }
                 }} className="px-4 py-2 bg-mt-error/20 text-mt-error rounded-lg hover:bg-mt-error hover:text-mt-bg transition-colors font-bold text-sm">Cancel</button>
+              </div>
+            )}
+            {matchFoundData && (
+              <div className="absolute inset-0 bg-mt-bg/95 backdrop-blur-lg rounded-lg flex flex-col items-center justify-center z-30 p-4 border-2 border-mt-main/50 shadow-[0_0_30px_rgba(226,183,20,0.2)]">
+                <h3 className="text-mt-main font-bold tracking-widest uppercase text-xl mb-6 animate-bounce">Match Found!</h3>
+                <div className="flex w-full max-w-sm justify-between items-center mb-8">
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-mt-text text-lg">{userProfile.name}</span>
+                    <span className="text-mt-sub font-mono">{userProfile.elo}</span>
+                    <span className="text-xs text-mt-main mt-2 font-bold">{matchFoundData.myAccepted ? 'Ready' : 'Waiting...'}</span>
+                  </div>
+                  <span className="font-bold text-mt-sub text-2xl mx-4">VS</span>
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-mt-text text-lg">{matchFoundData.oppName}</span>
+                    <span className="text-mt-sub font-mono">{matchFoundData.oppElo}</span>
+                    <span className="text-xs text-mt-main mt-2 font-bold">{matchFoundData.oppAccepted ? 'Ready' : 'Waiting...'}</span>
+                  </div>
+                </div>
+                {!matchFoundData.myAccepted ? (
+                  <div className="flex gap-4 w-full max-w-xs">
+                    <button onClick={async () => {
+                      try {
+                        await updateDoc(doc(db, 'matches', matchId), { status: 'cancelled', declinedBy: playerId });
+                        setMatchFoundData(null);
+                        setTestMode('passage');
+                      } catch(e) {}
+                    }} className="flex-1 py-2 bg-mt-error/20 text-mt-error hover:bg-mt-error hover:text-mt-bg rounded-lg font-bold transition-colors">Decline</button>
+                    <button onClick={async () => {
+                      try {
+                        await updateDoc(doc(db, 'matches', matchId), { [`players.${playerId}.accepted`]: true });
+                      } catch(e) {}
+                    }} className="flex-1 py-2 bg-mt-main text-mt-bg hover:bg-opacity-80 rounded-lg font-bold transition-colors shadow-lg">Accept</button>
+                  </div>
+                ) : (
+                  <div className="text-mt-sub italic animate-pulse">Waiting for opponent...</div>
+                )}
               </div>
             )}
             {multiplayerCountdown !== null && (
