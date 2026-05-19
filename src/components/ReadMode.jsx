@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const fonts = [
   { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
