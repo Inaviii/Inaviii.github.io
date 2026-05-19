@@ -730,7 +730,7 @@ export default function TypingTest() {
                     const doesElideForward = wordScansion.endsWith(' ') || nextWordScansion.startsWith(' ');
 
                     return (
-                      <div key={globalIdx} className="inline-block mr-4 relative">
+                      <div key={globalIdx} className={`inline-block relative ${wIdx !== lineObj.words.length - 1 ? 'mr-4' : ''}`}>
                         {showScansion && doesElideForward && distance === 0 && (
                           <svg className="absolute bottom-[-0.35em] right-[-0.8em] w-[1.2em] h-[0.6em] pointer-events-none text-mt-sub/50 z-0" viewBox="0 0 100 50" preserveAspectRatio="none">
                             <path d="M 10 15 Q 50 45 90 15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
