@@ -52,6 +52,20 @@ const getVowelIndices = (word, wordScansion = "") => {
   return groupedIndices;
 };
 
+const isDiphthongStart = (word, cIdx, vowelIndices) => {
+  const normalized = word.toLowerCase();
+  if (cIdx >= normalized.length - 1) return false;
+  const pair = normalized[cIdx] + normalized[cIdx + 1];
+  const diphthongs = ['ae', 'au', 'oe', 'ei', 'eu', 'ui'];
+  const vowels = ['a', 'e', 'i', 'o', 'u', 'y', 'ā', 'ē', 'ī', 'ō', 'ū', 'ȳ'];
+  
+  return vowels.includes(normalized[cIdx]) && 
+         vowels.includes(normalized[cIdx + 1]) && 
+         diphthongs.includes(pair) && 
+         vowelIndices.includes(cIdx) && 
+         !vowelIndices.includes(cIdx + 1);
+};
+
 export default function TypingTest() {
   // lazy loading architecture state
   const [libraryIndex, setLibraryIndex] = useState(null);
@@ -1195,11 +1209,17 @@ export default function TypingTest() {
                           }
                           const vowelSignIdx = vowelIndices.indexOf(cIdx);
                           const symbol = vowelSignIdx !== -1 ? wordScansion[vowelSignIdx] : null;
+                          const isDiphthong = symbol ? isDiphthongStart(word, cIdx, vowelIndices) : false;
 
                           return (
                             <span key={cIdx} className="relative inline-block">
                               {showScansion && distance === 0 && symbol && symbol !== ' ' && (
-                                <span className="absolute top-[-0.7em] left-1/2 -translate-x-1/2 text-[0.65em] text-mt-main/80 font-bold select-none leading-none">{symbol}</span>
+                                <span 
+                                  className="absolute top-[-0.7em] -translate-x-1/2 text-[0.65em] text-mt-main/80 font-bold select-none leading-none"
+                                  style={{ left: isDiphthong ? '100%' : '50%' }}
+                                >
+                                  {symbol}
+                                </span>
                               )}
                               <span className={`${charColor} transition-colors duration-100 drop-shadow-md`}>{char}</span>
                             </span>
