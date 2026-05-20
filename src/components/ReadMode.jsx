@@ -11,22 +11,35 @@ const fonts = [
 
 const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-const getVowelIndices = (word) => {
+const getVowelIndices = (word, wordScansion = "") => {
   const normalized = word.toLowerCase();
-  const vowels = ['a', 'e', 'i', 'o', 'u', 'y', 'ā', 'ē', 'ī', 'ō', 'ū'];
-  const indices = [];
-
+  const vowels = ['a', 'e', 'i', 'o', 'u', 'y', 'ā', 'ē', 'ī', 'ō', 'ū', 'ȳ'];
+  
+  const rawIndices = [];
   for (let i = 0; i < normalized.length; i++) {
     if (vowels.includes(normalized[i])) {
       if ((normalized[i] === 'u' || normalized[i] === 'ū') && i > 0 && normalized[i - 1] === 'q') continue;
-      if (i > 0 && indices.includes(i - 1)) {
-        const pair = normalized[i - 1] + normalized[i];
-        if (['ae', 'au', 'oe', 'ei', 'eu', 'ui'].includes(pair)) continue;
-      }
-      indices.push(i);
+      rawIndices.push(i);
     }
   }
-  return indices;
+
+  const marksCount = wordScansion.replace(/ /g, '').length;
+  if (marksCount > 0 && rawIndices.length === marksCount) {
+    return rawIndices;
+  }
+
+  const groupedIndices = [];
+  for (let i = 0; i < normalized.length; i++) {
+    if (vowels.includes(normalized[i])) {
+      if ((normalized[i] === 'u' || normalized[i] === 'ū') && i > 0 && normalized[i - 1] === 'q') continue;
+      if (i > 0 && groupedIndices.includes(i - 1)) {
+        const pair = normalized[i - 1] + normalized[i];
+        if (['ae', 'au', 'oe'].includes(pair)) continue;
+      }
+      groupedIndices.push(i);
+    }
+  }
+  return groupedIndices;
 };
 
 export default function ReadMode() {
@@ -290,8 +303,8 @@ export default function ReadMode() {
                     <span className="inline-block w-8 text-right mr-4 text-mt-sub/40 text-xs font-mono select-none shrink-0" style={{ transform: 'translateY(-0.35em)' }}>{lineRange.start + i}</span>
                     <span className="flex items-center flex-wrap" style={{ lineHeight: '1.8' }}>
                       {lineObj.words.map((word, wIdx) => {
-                        const vowelIndices = getVowelIndices(word);
                         const wordScansion = lineObj.scansion[wIdx] || "";
+                        const vowelIndices = getVowelIndices(word, wordScansion);
                         const nextWordScansion = lineObj.scansion[wIdx + 1] || "";
                         const doesElideForward = wordScansion.endsWith(' ') || nextWordScansion.startsWith(' ');
 
