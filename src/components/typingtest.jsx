@@ -1223,8 +1223,8 @@ export default function TypingTest() {
                             <span key={cIdx} className="relative inline-block">
                               {showScansion && distance === 0 && symbol && symbol !== ' ' && (
                                 <span 
-                                  className="absolute top-[-0.7em] -translate-x-1/2 text-[0.7em] text-mt-main/80 select-none leading-none pointer-events-none"
-                                  style={{ left: isDiphthong ? '100%' : '50%', fontFamily: '"Times New Roman", Georgia, serif' }}
+                                  className="absolute top-[-0.7em] -translate-x-1/2 text-[0.65em] text-mt-main/80 font-bold select-none leading-none"
+                                  style={{ left: isDiphthong ? '100%' : '50%' }}
                                 >
                                   {symbol}
                                 </span>
