@@ -251,9 +251,25 @@ export default function ReadMode() {
 
       // Use a scale of 1 to prevent the internal canvas from exceeding browser size limits on long texts
       const canvas = await html2canvas(container, {
-        backgroundColor: '#1E1E2E', 
+        backgroundColor: '#FFFFFF', 
         scale: 1,
-        useCORS: true
+        useCORS: true,
+        onclone: (documentClone) => {
+          // Inject print-specific styles to force black text and transparent containers
+          const style = documentClone.createElement('style');
+          style.innerHTML = `
+            .text-mt-text { color: #000000 !important; }
+            .text-mt-sub { color: #666666 !important; }
+            .text-mt-main { color: #000000 !important; }
+            .bg-mt-bg\\/80 { 
+              background-color: transparent !important; 
+              backdrop-filter: none !important;
+              box-shadow: none !important;
+              border: none !important;
+            }
+          `;
+          documentClone.head.appendChild(style);
+        }
       });
       
       // Use JPEG to prevent massive Out-Of-Memory data URIs
