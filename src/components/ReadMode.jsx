@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import DictionaryPopup from './DictionaryPopup';
 
 const fonts = [
@@ -83,9 +85,128 @@ export default function ReadMode() {
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('fontSize')) || 24);
   const [showScansion, setShowScansion] = useState(() => localStorage.getItem('showScansion') === 'true');
 
+  // annotations
+  const [isAnnotating, setIsAnnotating] = useState(false);
+  const [annotateTool, setAnnotateTool] = useState('highlighter'); // 'highlighter', 'pen', 'eraser'
+  const [strokeColor, setStrokeColor] = useState('#e2b714'); 
+  const [strokeWidth, setStrokeWidth] = useState(15);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  const canvasRef = useRef(null);
+  const canvasContainerRef = useRef(null);
+
   useEffect(() => {
     localStorage.setItem('showScansion', showScansion);
   }, [showScansion]);
+
+  // canvas resize observer
+  useEffect(() => {
+    if (!canvasContainerRef.current || !canvasRef.current) return;
+    const resizeCanvas = () => {
+      const container = canvasContainerRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const data = canvas.width > 0 && canvas.height > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+      
+      canvas.width = container.scrollWidth;
+      canvas.height = container.scrollHeight;
+      canvas.style.width = `${container.scrollWidth}px`;
+      canvas.style.height = `${container.scrollHeight}px`;
+      
+      if (data) {
+        ctx.putImageData(data, 0, 0);
+      }
+    };
+
+    resizeCanvas();
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(canvasContainerRef.current);
+    return () => observer.disconnect();
+  }, [lines, fontSize, showScansion, isAnnotating]); // Re-sync when layout might change
+
+  // drawing methods
+  const startDrawing = (e) => {
+    if (!isAnnotating) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext('2d');
+    
+    setIsDrawing(true);
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = strokeWidth;
+    
+    if (annotateTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = annotateTool === 'highlighter' ? 'multiply' : 'source-over';
+      ctx.strokeStyle = strokeColor;
+      // Highlighters look better slightly transparent even with multiply
+      if (annotateTool === 'highlighter') {
+        ctx.globalAlpha = 0.5;
+      } else {
+        ctx.globalAlpha = 1.0;
+      }
+    }
+  };
+
+  const draw = (e) => {
+    if (!isDrawing || !isAnnotating) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext('2d');
+    
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.getContext('2d').closePath();
+    }
+  };
+
+  const handleClearAnnotations = () => {
+    if (window.confirm("Are you sure you want to clear all annotations?")) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  };
+
+  const exportPDF = async () => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+    
+    try {
+      const canvas = await html2canvas(container, {
+        backgroundColor: '#1E1E2E', // Match dark theme
+        scale: 2 // High resolution
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? 'l' : 'p',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`latintype_reading_${selectedAuthor}.pdf`);
+    } catch (e) {
+      console.error("PDF Export failed", e);
+      alert("Failed to export PDF.");
+    }
+  };
 
   // fetch index on mount
   useEffect(() => {
@@ -293,6 +414,13 @@ export default function ReadMode() {
               >
                 SCANSION
               </button>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsAnnotating(!isAnnotating); }}
+                className={`transition-colors duration-200 py-1.5 px-3 rounded-lg text-xs font-bold shadow-lg shrink-0 flex items-center gap-1 ${isAnnotating ? 'bg-mt-main text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
+              >
+                ✎ ANNOTATE
+              </button>
             </div>
           </div>
         </div>
@@ -303,8 +431,19 @@ export default function ReadMode() {
         {isFetchingAuthor ? (
           <div className="text-center text-mt-sub animate-pulse py-12 px-8 sm:px-12">Fetching Text...</div>
         ) : (
-          <div ref={textContainerRef} className="overflow-y-auto scroll-smooth w-full h-full p-8 sm:p-12 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-mt-sub/20 [&::-webkit-scrollbar-thumb]:rounded-full">
-            <div className="text-mt-text whitespace-pre-wrap leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
+          <div ref={textContainerRef} className={`overflow-y-auto scroll-smooth w-full h-full p-8 sm:p-12 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-mt-sub/20 [&::-webkit-scrollbar-thumb]:rounded-full ${isAnnotating ? 'cursor-crosshair' : ''}`}>
+            <div className="relative w-full" ref={canvasContainerRef}>
+              
+              <canvas
+                ref={canvasRef}
+                className={`absolute top-0 left-0 z-20 ${isAnnotating ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+              />
+
+              <div className="text-mt-text whitespace-pre-wrap leading-relaxed relative z-0" style={{ fontSize: `${fontSize}px` }}>
               {lines.map((lineObj, i) => {
 
 
@@ -357,10 +496,51 @@ export default function ReadMode() {
                   </p>
                 );
               })}
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Annotation Toolbar */}
+      {isAnnotating && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-mt-bg/95 backdrop-blur-md border border-mt-sub/20 rounded-2xl px-6 py-4 shadow-2xl flex flex-wrap items-center gap-6 animate-fade-in pointer-events-auto">
+          <div className="flex gap-2 bg-mt-sub-alt/50 p-1 rounded-lg">
+            <button onClick={() => setAnnotateTool('highlighter')} className={`p-2 rounded transition-colors ${annotateTool === 'highlighter' ? 'bg-mt-bg shadow text-mt-main' : 'text-mt-sub hover:text-mt-text'}`} title="Highlighter">🖌️</button>
+            <button onClick={() => setAnnotateTool('pen')} className={`p-2 rounded transition-colors ${annotateTool === 'pen' ? 'bg-mt-bg shadow text-mt-main' : 'text-mt-sub hover:text-mt-text'}`} title="Pen">🖊️</button>
+            <button onClick={() => setAnnotateTool('eraser')} className={`p-2 rounded transition-colors ${annotateTool === 'eraser' ? 'bg-mt-bg shadow text-mt-main' : 'text-mt-sub hover:text-mt-text'}`} title="Eraser">🧽</button>
+          </div>
+
+          <div className="h-8 w-px bg-mt-sub/20 hidden sm:block"></div>
+
+          <div className="flex items-center gap-2">
+            {['#e2b714', '#e25822', '#228be6', '#40c057', '#dcdcaa', '#cdd6f4'].map(color => (
+              <button
+                key={color}
+                onClick={() => setStrokeColor(color)}
+                className={`w-6 h-6 rounded-full border-2 transition-transform ${strokeColor === color ? 'scale-125 border-mt-text' : 'border-transparent hover:scale-110'}`}
+                style={{ backgroundColor: color }}
+                title="Color Picker"
+              />
+            ))}
+          </div>
+
+          <div className="h-8 w-px bg-mt-sub/20 hidden sm:block"></div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-mt-sub uppercase tracking-widest hidden sm:inline">Size</span>
+            <input type="range" min="2" max="40" value={strokeWidth} onChange={(e) => setStrokeWidth(parseInt(e.target.value))} className="w-20 sm:w-24 accent-mt-main" title="Thickness" />
+          </div>
+
+          <div className="h-8 w-px bg-mt-sub/20 hidden sm:block"></div>
+
+          <button onClick={handleClearAnnotations} className="text-mt-error hover:text-red-400 font-bold text-xs uppercase tracking-widest px-2 transition-colors">Clear</button>
+          
+          <button onClick={exportPDF} className="bg-mt-main text-mt-bg hover:bg-mt-text font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-lg transition-colors shadow-lg flex items-center gap-2">
+            <span>💾</span> Save PDF
+          </button>
+        </div>
+      )}
 
       <DictionaryPopup 
         word={selectedWord} 
