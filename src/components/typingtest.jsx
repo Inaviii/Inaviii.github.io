@@ -859,27 +859,38 @@ export default function TypingTest() {
           <div className="flex flex-col items-end gap-3">
 
             {/*mode toggle*/}
-            <select 
-              value={testMode} 
-              onChange={(e) => {
-                const newMode = e.target.value;
-                setTestMode(newMode);
-                if (newMode === 'time') {
-                  loadRandomTimeAttack();
-                } else if (newMode === 'daily') {
-                  loadDailyChallenge();
-                } else {
-                  setMatchStatus('idle');
-                  resetTest();
-                }
-              }}
-              className="p-3 bg-mt-bg/80 border border-mt-sub/30 rounded-xl text-mt-main font-bold outline-none cursor-pointer hover:border-mt-sub transition-colors shadow-lg shadow-black/20"
-            >
-              <option value="zen">ZEN MODE</option>
-              <option value="time">TIME ATTACK</option>
-              <option value="multiplayer">MULTIPLAYER</option>
-              <option value="daily">DAILY CHALLENGE</option>
-            </select>
+            <div className="flex bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg mb-2 self-end">
+              <button
+                onClick={(e) => { e.stopPropagation(); setTestMode('zen'); setMatchStatus('idle'); resetTest(); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'zen' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Zen
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setTestMode('passage'); setMatchStatus('idle'); resetTest(); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'passage' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Passage
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setTestMode('time'); loadRandomTimeAttack(); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'time' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Time Attack
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleMultiplayerQueue(); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'multiplayer' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
+              >
+                Multiplayer
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setTestMode('daily'); loadDailyChallenge(); }}
+                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'daily' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.4)]' : 'text-mt-main/80 hover:text-mt-main'}`}
+              >
+                Daily Challenge
+              </button>
+            </div>
 
             {/*navigation*/}
             <div className="flex gap-3 bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg justify-end w-full">
