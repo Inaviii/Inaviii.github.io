@@ -103,8 +103,18 @@ export default function ReadMode() {
     const resizeCanvas = () => {
       const container = canvasContainerRef.current;
       const canvas = canvasRef.current;
+      
+      if (!container || !canvas) return; // Prevent crash if unmounted
+      
       const ctx = canvas.getContext('2d');
-      const data = canvas.width > 0 && canvas.height > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+      if (!ctx) return;
+
+      let data = null;
+      try {
+        data = canvas.width > 0 && canvas.height > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+      } catch (e) {
+        console.warn("Canvas is too large to save image data during resize.", e);
+      }
       
       canvas.width = container.scrollWidth;
       canvas.height = container.scrollHeight;
@@ -112,7 +122,11 @@ export default function ReadMode() {
       canvas.style.height = `${container.scrollHeight}px`;
       
       if (data) {
-        ctx.putImageData(data, 0, 0);
+        try {
+          ctx.putImageData(data, 0, 0);
+        } catch (e) {
+          console.warn("Canvas exceeds max size; unable to restore image data.", e);
+        }
       }
     };
 
