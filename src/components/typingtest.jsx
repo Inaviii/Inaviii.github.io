@@ -528,6 +528,22 @@ export default function TypingTest({ ghostData, setGhostData }) {
         if (lines.length === 0) return;
         setXpAwarded(true);
 
+        if ((testMode === 'time' || testMode === 'passage') && stats.wpm > 0) {
+          try {
+            await addDoc(collection(db, "scores"), {
+              name: userProfile.name,
+              wpm: stats.wpm,
+              acc: stats.acc,
+              mode: testMode,
+              duration: testMode === 'time' ? timeLimit : null,
+              passage: testMode === 'passage' ? `${selectedAuthor} - ${selectedWork}` : null,
+              date: new Date().toISOString(),
+              timestamp: new Date()
+            });
+            setScoreSaved(true);
+          } catch (e) { console.error("Error auto-submitting score", e); }
+        }
+
         if (testMode === 'daily' && userProfile) {
           const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
           const dailyScore = Math.round(stats.wpm * Math.pow(stats.acc / 100, 1.5) * 10);
@@ -729,11 +745,6 @@ export default function TypingTest({ ghostData, setGhostData }) {
         return { ...prev, wpm: newWpm, acc: newAcc };
       });
 
-      if (ghostData && ghostData.wpm > 0) {
-        const ghostChars = Math.floor(timeElapsedMin * (ghostData.wpm * 5));
-        setGhostProgress(ghostChars);
-      }
-
       if (testMode === 'time' || testMode === 'multiplayer' || testMode === 'daily') {
         const tLimit = testMode === 'multiplayer' ? 30 : timeLimit;
         const remaining = Math.max(0, tLimit - Math.floor(timeElapsedMs / 1000));
@@ -746,6 +757,19 @@ export default function TypingTest({ ghostData, setGhostData }) {
     return () => clearInterval(interval);
   }, [startTime, isFinished, testMode, timeLimit, matchId, playerId]);
 
+  // live ghost animation frame loop
+  useEffect(() => {
+    if (!startTime || isFinished || !ghostData || ghostData.wpm <= 0) return;
+    let animationFrameId;
+    const updateGhost = () => {
+      const timeElapsedMs = Date.now() - startTime;
+      const ghostChars = (timeElapsedMs / 60000) * (ghostData.wpm * 5);
+      setGhostProgress(ghostChars);
+      animationFrameId = requestAnimationFrame(updateGhost);
+    };
+    animationFrameId = requestAnimationFrame(updateGhost);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [startTime, isFinished, ghostData]);
 
   const playClickSound = () => {
     if (volume === 0) return;
@@ -1283,29 +1307,23 @@ export default function TypingTest({ ghostData, setGhostData }) {
                   </div>
                 </div>
 
-                {testMode !== 'multiplayer' && testMode !== 'daily' && (
+                {testMode !== 'multiplayer' && testMode !== 'daily' && testMode !== 'zen' && !userProfile && (
                   <div className="flex flex-col items-center mb-8 w-full max-w-sm">
-                    {!userProfile ? (
-                      <input
-                        type="text"
-                        placeholder="Enter name for leaderboard..."
-                        className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center"
-                        maxLength={20}
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        disabled={scoreSaved || isSaving}
-                      />
-                    ) : (
-                      <div className="text-mt-sub text-sm mb-3">
-                        Submit score to global leaderboards?
-                      </div>
-                    )}
+                    <input
+                      type="text"
+                      placeholder="Enter name for leaderboard..."
+                      className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center"
+                      maxLength={20}
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      disabled={scoreSaved || isSaving}
+                    />
                     <button
                       className={`w-full font-bold py-2 rounded-lg transition-colors ${scoreSaved ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-main text-mt-bg hover:bg-opacity-80'}`}
                       disabled={scoreSaved || isSaving}
                       onClick={async (e) => {
                         e.stopPropagation();
-                        const submitName = userProfile ? userProfile.name : playerName.trim();
+                        const submitName = playerName.trim();
                         if (!submitName || isSaving || stats.wpm === 0) return;
                         setIsSaving(true);
                         try {
@@ -1320,6 +1338,19 @@ export default function TypingTest({ ghostData, setGhostData }) {
                             timestamp: new Date()
                           });
                           setScoreSaved(true);
+
+                          const docId = submitName.toLowerCase();
+                          localStorage.setItem('latintype_ranked_name', submitName);
+                          const docRef = doc(db, 'users', docId);
+                          const docSnap = await getDoc(docRef);
+                          if (docSnap.exists()) {
+                            setUserProfile({ xp: 0, level: 1, badges: [], ...docSnap.data(), docId });
+                          } else {
+                            const newProfile = { name: submitName, elo: 1200, wins: 0, losses: 0, draws: 0, xp: 0, level: 1, badges: [] };
+                            await setDoc(docRef, newProfile);
+                            setUserProfile({ ...newProfile, docId });
+                          }
+
                         } catch (err) {
                           console.error(err);
                         } finally {
@@ -1327,7 +1358,7 @@ export default function TypingTest({ ghostData, setGhostData }) {
                         }
                       }}
                     >
-                      {isSaving ? "Saving..." : (scoreSaved ? "Score Saved!" : (userProfile ? `Submit as ${userProfile.name}` : "Submit Score"))}
+                      {isSaving ? "Saving..." : (scoreSaved ? "Score Saved!" : "Submit & Log In")}
                     </button>
                   </div>
                 )}
