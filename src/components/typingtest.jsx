@@ -1225,7 +1225,7 @@ export default function TypingTest() {
                   </div>
                 </div>
 
-                {testMode !== 'multiplayer' && (
+                {testMode !== 'multiplayer' && testMode !== 'daily' && (
                   <div className="flex flex-col items-center mb-8 w-full max-w-sm">
                     {!userProfile ? (
                       <input
