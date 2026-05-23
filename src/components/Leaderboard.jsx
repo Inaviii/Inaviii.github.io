@@ -8,6 +8,33 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ranked');
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [dailyCountdown, setDailyCountdown] = useState('');
+
+  useEffect(() => {
+    if (activeTab !== 'daily') return;
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const nextMidnight = new Date();
+      nextMidnight.setUTCHours(24, 0, 0, 0);
+      
+      const diffMs = nextMidnight - now;
+      if (diffMs <= 0) {
+        setDailyCountdown('00:00:00');
+        return;
+      }
+
+      const h = Math.floor(diffMs / (1000 * 60 * 60));
+      const m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diffMs % (1000 * 60)) / 1000);
+      
+      setDailyCountdown(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
   const playerId = localStorage.getItem('latintype_pid');
 
   const handleRowClick = async (name) => {
@@ -223,7 +250,14 @@ export default function Leaderboard() {
           <h1 className="text-4xl font-bold text-mt-text tracking-tighter">
             latin<span className="text-mt-main">type</span>
           </h1>
-          <span className="text-mt-sub font-light text-2xl ml-4 tracking-widest uppercase">Leaderboards</span>
+          <div className="flex items-center">
+            <span className="text-mt-sub font-light text-2xl ml-4 tracking-widest uppercase">Leaderboards</span>
+            {activeTab === 'daily' && dailyCountdown && (
+              <span className="ml-4 text-mt-main text-sm bg-mt-main/10 px-3 py-1 rounded-full font-mono flex items-center gap-2 border border-mt-main/20">
+                <span className="animate-pulse opacity-80">⏳</span> {dailyCountdown}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3 mb-4">
