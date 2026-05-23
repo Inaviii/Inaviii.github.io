@@ -491,7 +491,7 @@ export default function TypingTest() {
   useEffect(() => {
     if (isFinished && userProfile && !xpAwarded) {
       const calculateXP = async () => {
-        if (Object.keys(activeText).length === 0) return;
+        if (lines.length === 0) return;
         setXpAwarded(true);
 
         if (testMode === 'daily' && userProfile) {
