@@ -18,6 +18,7 @@ const fonts = [
   { name: "Courier New", value: '"Courier New", Courier, monospace' },
   { name: "Consolas", value: 'Consolas, monospace' },
   { name: "Lucida Console", value: '"Lucida Console", Monaco, monospace' },
+  { name: "OpenDyslexic", value: '"OpenDyslexic", sans-serif' },
 ];
 
 const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");

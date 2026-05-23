@@ -8,6 +8,7 @@ const fonts = [
   { name: "Courier New", value: '"Courier New", Courier, monospace' },
   { name: "Consolas", value: 'Consolas, monospace' },
   { name: "Lucida Console", value: '"Lucida Console", Monaco, monospace' },
+  { name: "OpenDyslexic", value: '"OpenDyslexic", sans-serif' },
 ];
 
 const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -305,6 +306,7 @@ export default function ReadMode() {
           <div ref={textContainerRef} className="overflow-y-auto scroll-smooth w-full h-full p-8 sm:p-12 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-mt-sub/20 [&::-webkit-scrollbar-thumb]:rounded-full">
             <div className="text-mt-text whitespace-pre-wrap leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
               {lines.map((lineObj, i) => {
+
                 if (!showScansion || !lineObj.scansion) {
                   return (
                     <p key={i} className={`py-1 ${i % 5 === 4 ? 'mb-4' : ''}`}>
