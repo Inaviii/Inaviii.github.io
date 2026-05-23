@@ -25,7 +25,7 @@ export default function DictionaryPopup({ word, onClose }) {
 
         const result = await lookupWord(cleanWord);
         
-        if (result && (result.results.length > 0 || result.uniqueResults.length > 0 || result.trickResults.length > 0)) {
+        if (result && (result.results.length > 0 || result.uniqueResults.length > 0 || result.trickResults.length > 0 || (result.addonResults && result.addonResults.length > 0))) {
            setDefinition(formatWordAnalysis(result));
         } else {
            setError('Word not found in dictionary.');

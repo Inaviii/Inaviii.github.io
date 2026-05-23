@@ -129,8 +129,8 @@ export default function ReadMode() {
       for (const word of wordsToLookup) {
         try {
           const res = await lookupWord(word);
-          if (res && (res.results.length > 0 || res.uniqueResults.length > 0)) {
-            const pos = res.results[0]?.de?.part?.pofs || res.uniqueResults[0]?.de?.part?.pofs || 'UNKNOWN';
+          if (res && (res.results.length > 0 || res.uniqueResults.length > 0 || (res.addonResults && res.addonResults.length > 0))) {
+            const pos = res.results[0]?.de?.part?.pofs || res.uniqueResults[0]?.de?.part?.pofs || res.addonResults?.[0]?.baseResults?.[0]?.de?.part?.pofs || 'UNKNOWN';
             newCache[word] = pos;
           } else {
             newCache[word] = 'UNKNOWN';
