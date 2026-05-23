@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, getDocs, where, getDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where, getDoc, doc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 import ProfilePopup, { DECORATIONS, BADGES } from './ProfilePopup';
 
 export default function Leaderboard() {
-  const [scores, setScores] = useState({ passage: [], time30: [], time60: [], time120: [], ranked: [] });
+  const [scores, setScores] = useState({ passage: [], time30: [], time60: [], time120: [], ranked: [], daily: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ranked');
   const [selectedProfile, setSelectedProfile] = useState(null);
@@ -59,11 +59,55 @@ export default function Leaderboard() {
           const rankedSnap = await getDocs(rankedQ);
           results['ranked'] = rankedSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch (e) {
-          console.error("Error fetching ranked leaderboard (check Firestore rules for 'users' collection):", e);
+          console.error("Error fetching ranked leaderboard:", e);
           results['ranked'] = [];
         }
 
+        const dateStr = new Date().toISOString().split('T')[0];
+        try {
+          const dailyRef = collection(db, 'daily_leaderboards', dateStr, 'scores');
+          const dailyQ = query(dailyRef, orderBy('score', 'desc'), limit(50));
+          const dailySnap = await getDocs(dailyQ);
+          results['daily'] = dailySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (e) {
+          console.error("Error fetching daily leaderboard:", e);
+          results['daily'] = [];
+        }
+
         setScores(results);
+
+        // Lazy resolution for yesterday's daily challenge
+        try {
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yDateStr = yesterday.toISOString().split('T')[0];
+          const yRef = doc(db, 'daily_leaderboards', yDateStr);
+          const ySnap = await getDoc(yRef);
+
+          if (ySnap.exists() && !ySnap.data().resolved) {
+            const scoresRef = collection(db, 'daily_leaderboards', yDateStr, 'scores');
+            const topScoresQ = query(scoresRef, orderBy('score', 'desc'), limit(1));
+            const topSnap = await getDocs(topScoresQ);
+            
+            let winnerDocId = null;
+            if (!topSnap.empty) winnerDocId = topSnap.docs[0].id;
+
+            await runTransaction(db, async (transaction) => {
+              const freshSnap = await transaction.get(yRef);
+              if (freshSnap.exists() && !freshSnap.data().resolved) {
+                if (winnerDocId) {
+                  const winnerRef = doc(db, 'users', winnerDocId);
+                  const winnerSnap = await transaction.get(winnerRef);
+                  if (winnerSnap.exists()) {
+                    transaction.update(winnerRef, { crowns: (winnerSnap.data().crowns || 0) + 1 });
+                  }
+                }
+                transaction.update(yRef, { resolved: true });
+              }
+            });
+          }
+        } catch (e) { console.error("Error resolving lazy daily crowns:", e); }
+
       } catch (error) {
         console.error("Error fetching leaderboard:", error);
       } finally {
@@ -94,9 +138,10 @@ export default function Leaderboard() {
             <tr className="bg-mt-sub-alt/60 text-mt-sub text-sm uppercase tracking-wider">
               <th className="px-6 py-4 font-bold border-b border-mt-sub/20 w-16 text-center">#</th>
               <th className="px-6 py-4 font-bold border-b border-mt-sub/20">Name</th>
+              {activeTab === 'daily' && <th className="px-6 py-4 font-bold border-b border-mt-sub/20 text-right">Score</th>}
               <th className="px-6 py-4 font-bold border-b border-mt-sub/20 text-right">WPM</th>
               <th className="px-6 py-4 font-bold border-b border-mt-sub/20 text-right">Accuracy</th>
-              <th className="px-6 py-4 font-bold border-b border-mt-sub/20 text-right hidden sm:table-cell">Date</th>
+              {activeTab !== 'daily' && <th className="px-6 py-4 font-bold border-b border-mt-sub/20 text-right hidden sm:table-cell">Date</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-mt-sub/10">
@@ -107,11 +152,14 @@ export default function Leaderboard() {
                   <div className="truncate max-w-[150px] sm:max-w-[300px]">{score.name || "Anonymous"}</div>
                   {score.passage && <div className="text-xs text-mt-sub/80 truncate max-w-[150px] sm:max-w-[300px] mt-1 font-normal">{score.passage}</div>}
                 </td>
-                <td className="px-6 py-5 text-right font-light text-2xl text-mt-main">{score.wpm}</td>
+                {activeTab === 'daily' && <td className="px-6 py-5 text-right font-bold text-lg text-mt-main drop-shadow-md">{score.score}</td>}
+                <td className={`px-6 py-5 text-right font-light text-2xl ${activeTab === 'daily' ? 'text-mt-sub' : 'text-mt-main'}`}>{score.wpm}</td>
                 <td className="px-6 py-5 text-right text-mt-text font-mono">{score.acc}%</td>
-                <td className="px-6 py-5 text-right text-mt-sub/80 text-sm hidden sm:table-cell">
-                  {new Date(score.date).toLocaleDateString()}
-                </td>
+                {activeTab !== 'daily' && (
+                  <td className="px-6 py-5 text-right text-mt-sub/80 text-sm hidden sm:table-cell">
+                    {new Date(score.date).toLocaleDateString()}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -148,6 +196,7 @@ export default function Leaderboard() {
                     <div>
                       <div className="truncate max-w-[150px] sm:max-w-[300px]">
                         {user.name}
+                        {user.crowns > 0 && <span className="ml-2">{Array(user.crowns).fill('👑').join('')}</span>}
                       </div>
                       {user.activeTitle && BADGES[user.activeTitle] && (
                         <div className="text-[0.65rem] text-mt-sub font-bold uppercase tracking-widest mt-1 flex items-center gap-1">
@@ -178,6 +227,7 @@ export default function Leaderboard() {
         </div>
 
         <div className="flex flex-wrap gap-3 mb-4">
+          <button onClick={() => setActiveTab('daily')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'daily' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>🌟 Daily Challenge</button>
           <button onClick={() => setActiveTab('ranked')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'ranked' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>🏆 Ranked Multiplayer</button>
           <button onClick={() => setActiveTab('time30')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'time30' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>30s Time Attack</button>
           <button onClick={() => setActiveTab('time60')} className={`px-5 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${activeTab === 'time60' ? 'bg-mt-main text-mt-bg shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text hover:bg-mt-sub-alt/80'}`}>60s Time Attack</button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DictionaryPopup from './DictionaryPopup';
+import { lookupWord } from '../lib/DictionaryService';
 
 const fonts = [
   { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
@@ -83,6 +84,10 @@ export default function ReadMode() {
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('fontSize')) || 24);
   const [showScansion, setShowScansion] = useState(() => localStorage.getItem('showScansion') === 'true');
 
+  // syntax highlighting
+  const [syntaxMode, setSyntaxMode] = useState(false);
+  const [syntaxCache, setSyntaxCache] = useState({});
+
   // annotations
   const [isAnnotating, setIsAnnotating] = useState(false);
   const [annotateTool, setAnnotateTool] = useState('highlighter'); // 'highlighter', 'pen', 'eraser'
@@ -100,6 +105,67 @@ export default function ReadMode() {
   useEffect(() => {
     localStorage.setItem('showScansion', showScansion);
   }, [showScansion]);
+
+  // batch fetch syntax for all visible words
+  useEffect(() => {
+    if (!syntaxMode || !lines.length) return;
+    
+    const fetchSyntax = async () => {
+      const newCache = { ...syntaxCache };
+      let updated = false;
+      
+      const wordsToLookup = new Set();
+      lines.forEach(line => {
+        line.words.forEach(word => {
+          const clean = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
+          if (clean && !newCache[clean]) {
+            wordsToLookup.add(clean);
+          }
+        });
+      });
+      
+      if (wordsToLookup.size === 0) return;
+
+      for (const word of wordsToLookup) {
+        try {
+          const res = await lookupWord(word);
+          if (res && (res.results.length > 0 || res.uniqueResults.length > 0)) {
+            const pos = res.results[0]?.partOfSpeech || res.uniqueResults[0]?.partOfSpeech || 'UNKNOWN';
+            newCache[word] = pos;
+          } else {
+            newCache[word] = 'UNKNOWN';
+          }
+          updated = true;
+        } catch (e) {
+          console.warn('Syntax lookup failed for', word);
+        }
+      }
+      
+      if (updated) {
+        setSyntaxCache(newCache);
+      }
+    };
+    
+    fetchSyntax();
+  }, [syntaxMode, lines]);
+
+  const getSyntaxColor = (word) => {
+    if (!syntaxMode) return '';
+    const clean = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
+    const pos = syntaxCache[clean];
+    if (!pos || pos === 'UNKNOWN') return '';
+    
+    switch(pos) {
+      case 'V': return 'text-red-400 font-bold drop-shadow-md'; // Verbs
+      case 'N': return 'text-blue-400 font-bold drop-shadow-md'; // Nouns
+      case 'ADJ': return 'text-green-400 font-bold drop-shadow-md'; // Adjectives
+      case 'ADV': return 'text-yellow-400 font-bold drop-shadow-md'; // Adverbs
+      case 'PRON': return 'text-purple-400 font-bold drop-shadow-md'; // Pronouns
+      case 'PREP':
+      case 'CONJ': return 'text-gray-400'; // Prepositions/Conjunctions
+      default: return '';
+    }
+  };
 
   // canvas resize observer
   useEffect(() => {
@@ -508,6 +574,14 @@ export default function ReadMode() {
               </select>
 
               <button
+                onClick={(e) => { e.stopPropagation(); setSyntaxMode(!syntaxMode); }}
+                className={`transition-colors duration-200 py-1.5 px-3 rounded-lg text-xs font-bold shadow-lg shrink-0 ${syntaxMode ? 'bg-mt-main text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
+                title="Color-code by Part of Speech"
+              >
+                🎨 SYNTAX
+              </button>
+
+              <button
                 onClick={(e) => { e.stopPropagation(); setShowScansion(!showScansion); }}
                 className={`transition-colors duration-200 py-1.5 px-3 rounded-lg text-xs font-bold shadow-lg shrink-0 ${showScansion ? 'bg-mt-main text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
               >
@@ -560,7 +634,7 @@ export default function ReadMode() {
                         return (
                           <span 
                             key={wIdx} 
-                            className={`inline-block relative cursor-pointer hover:bg-mt-sub/20 rounded px-1 -mx-1 transition-colors ${wIdx !== lineObj.words.length - 1 ? 'mr-3' : ''}`}
+                            className={`inline-block relative cursor-pointer hover:bg-mt-sub/20 rounded px-1 -mx-1 transition-colors ${wIdx !== lineObj.words.length - 1 ? 'mr-3' : ''} ${getSyntaxColor(word)}`}
                             onClick={() => setSelectedWord(word)}
                             title="Click to look up"
                           >

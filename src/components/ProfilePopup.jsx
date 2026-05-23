@@ -111,7 +111,10 @@ export default function ProfilePopup({ userProfile, isCurrentUser, cursorStyle, 
               {userProfile.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-mt-main uppercase tracking-widest">{userProfile.name}</h2>
+              <h2 className="text-2xl font-bold text-mt-main uppercase tracking-widest flex items-center gap-2">
+                {userProfile.name}
+                {userProfile.crowns > 0 && <span className="text-xl" title={`${userProfile.crowns} Daily Challenge Wins`}>{Array(userProfile.crowns).fill('👑').join('')}</span>}
+              </h2>
               {activeTitle && BADGES[activeTitle] ? (
                 <p className="text-mt-sub text-sm font-bold tracking-widest uppercase flex items-center gap-2 mt-1">
                   <span className="text-lg leading-none">{BADGES[activeTitle].icon}</span> <span className="text-mt-text">{BADGES[activeTitle].title}</span>

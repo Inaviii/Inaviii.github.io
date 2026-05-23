@@ -262,6 +262,45 @@ export default function TypingTest() {
       });
   };
 
+  const seededRandom = (seedStr) => {
+    let hash = 0;
+    for (let i = 0; i < seedStr.length; i++) {
+      hash = Math.imul(31, hash) + seedStr.charCodeAt(i) | 0;
+    }
+    return function() {
+      hash = Math.imul(hash ^ (hash >>> 15), 1597334677);
+      hash = Math.imul(hash ^ (hash >>> 15), 3812015801);
+      return ((hash ^ (hash >>> 15)) >>> 0) / 4294967296;
+    };
+  };
+
+  const loadDailyChallenge = () => {
+    if (!libraryIndex) return;
+    setIsFetchingAuthor(true);
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const rand = seededRandom(dateStr);
+
+    const authors = Object.keys(libraryIndex);
+    const randomAuthor = authors[Math.floor(rand() * authors.length)];
+    const works = Object.keys(libraryIndex[randomAuthor]);
+    const randomWork = works[Math.floor(rand() * works.length)];
+    const pieces = libraryIndex[randomAuthor][randomWork];
+    const randomPiece = pieces[Math.floor(rand() * pieces.length)];
+
+    setSelectedAuthor(randomAuthor);
+    setSelectedWork(randomWork);
+    setSelectedPieceId(randomPiece.id);
+
+    const safeFilename = randomAuthor.toLowerCase().replace(/ /g, "_") + ".json";
+    fetch(`/library/${safeFilename}?nocache=${new Date().getTime()}`)
+      .then(res => res.json())
+      .then(data => {
+        setActiveAuthorData(data);
+        setIsFetchingAuthor(false);
+      });
+  };
+
   const handleMultiplayerQueue = async () => {
     if (!libraryIndex) return;
     
@@ -452,8 +491,31 @@ export default function TypingTest() {
   useEffect(() => {
     if (isFinished && userProfile && !xpAwarded) {
       const calculateXP = async () => {
+        if (Object.keys(activeText).length === 0) return;
         setXpAwarded(true);
-        let earnedXp = Math.floor(stats.correctKeys / 5) * 5; // 5 XP per roughly word length
+
+        if (testMode === 'daily' && userProfile) {
+          const dateStr = new Date().toISOString().split('T')[0];
+          const dailyScore = Math.round(stats.wpm * Math.pow(stats.acc / 100, 1.5) * 10);
+          
+          try {
+            await setDoc(doc(db, 'daily_leaderboards', dateStr), { date: dateStr, resolved: false }, { merge: true });
+            
+            const scoreRef = doc(db, 'daily_leaderboards', dateStr, 'scores', userProfile.docId);
+            const scoreSnap = await getDoc(scoreRef);
+            if (!scoreSnap.exists() || scoreSnap.data().score < dailyScore) {
+              await setDoc(scoreRef, {
+                name: userProfile.name || userProfile.docId,
+                score: dailyScore,
+                wpm: stats.wpm,
+                acc: stats.acc,
+                timestamp: serverTimestamp()
+              });
+            }
+          } catch(e) { console.error("Error saving daily score", e); }
+        }
+
+        let earnedXp = Math.floor(stats.correctKeys / 5) * 5; 
         
         if (testMode === 'time') earnedXp += 50; 
         if (testMode === 'multiplayer') {
@@ -586,6 +648,13 @@ export default function TypingTest() {
         rawLines = rawLines.slice(sIndex, eIndex);
         if (rawScansion) rawScansion = rawScansion.slice(sIndex, eIndex);
       }
+    } else if (testMode === 'daily') {
+      const dateStr = new Date().toISOString().split('T')[0];
+      const rand = seededRandom(dateStr);
+      const maxStartIndex = Math.max(0, rawLines.length - 20);
+      const startIndex = Math.floor(rand() * (maxStartIndex + 1));
+      rawLines = rawLines.slice(startIndex, startIndex + 20);
+      if (rawScansion) rawScansion = rawScansion.slice(startIndex, startIndex + 20);
     }
 
     let globalIdx = 0;
@@ -626,7 +695,7 @@ export default function TypingTest() {
         return { ...prev, wpm: newWpm, acc: newAcc };
       });
 
-      if (testMode === 'time' || testMode === 'multiplayer') {
+      if (testMode === 'time' || testMode === 'multiplayer' || testMode === 'daily') {
         const tLimit = testMode === 'multiplayer' ? 30 : timeLimit;
         const remaining = Math.max(0, tLimit - Math.floor(timeElapsedMs / 1000));
         setTimeRemaining(remaining);
@@ -659,7 +728,7 @@ export default function TypingTest() {
         const authors = Object.keys(libraryIndex);
         const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
         const works = Object.keys(libraryIndex[randomAuthor]);
-        const randomWork = works[Math.floor(Math.random() * works.length)];
+        const randomWork = works[Math.floor(Math.random() * randomWork.length)];
         const randomPieces = libraryIndex[randomAuthor][randomWork];
         const randomPiece = randomPieces[Math.floor(Math.random() * randomPieces.length)];
         setSelectedAuthor(randomAuthor);
@@ -776,7 +845,7 @@ export default function TypingTest() {
                 <span className="text-[0.65rem] uppercase tracking-widest text-mt-sub/70 font-bold mb-1">acc</span>
                 <span className="text-4xl font-light text-mt-text leading-none">{stats.acc}%</span>
               </div>
-              {testMode === 'time' && (
+              {(testMode === 'time' || testMode === 'daily') && (
                 <div className="flex flex-col">
                   <span className="text-[0.65rem] uppercase tracking-widest text-mt-main/70 font-bold mb-1">time</span>
                   <span className={`text-4xl font-light leading-none ${timeRemaining <= 10 ? 'text-mt-error animate-pulse' : 'text-mt-main'}`}>
@@ -790,32 +859,27 @@ export default function TypingTest() {
           <div className="flex flex-col items-end gap-3">
 
             {/*mode toggle*/}
-            <div className="flex bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg mb-2 self-end">
-              <button
-                onClick={(e) => { e.stopPropagation(); setTestMode('zen'); }}
-                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'zen' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
-              >
-                Zen
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setTestMode('passage'); }}
-                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'passage' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
-              >
-                Passage
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setTestMode('time'); loadRandomTimeAttack(); }}
-                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'time' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
-              >
-                Time Attack
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleMultiplayerQueue(); }}
-                className={`py-1 px-3 text-xs font-bold rounded-md transition-colors duration-200 ${testMode === 'multiplayer' ? 'bg-mt-main text-mt-bg' : 'text-mt-sub hover:text-mt-text'}`}
-              >
-                Multiplayer (30s)
-              </button>
-            </div>
+            <select 
+              value={testMode} 
+              onChange={(e) => {
+                const newMode = e.target.value;
+                setTestMode(newMode);
+                if (newMode === 'time') {
+                  loadRandomTimeAttack();
+                } else if (newMode === 'daily') {
+                  loadDailyChallenge();
+                } else {
+                  setMatchStatus('idle');
+                  resetTest();
+                }
+              }}
+              className="p-3 bg-mt-bg/80 border border-mt-sub/30 rounded-xl text-mt-main font-bold outline-none cursor-pointer hover:border-mt-sub transition-colors shadow-lg shadow-black/20"
+            >
+              <option value="zen">ZEN MODE</option>
+              <option value="time">TIME ATTACK</option>
+              <option value="multiplayer">MULTIPLAYER</option>
+              <option value="daily">DAILY CHALLENGE</option>
+            </select>
 
             {/*navigation*/}
             <div className="flex gap-3 bg-mt-bg/80 backdrop-blur-md p-1 rounded-lg shadow-lg justify-end w-full">
@@ -1127,7 +1191,7 @@ export default function TypingTest() {
           {/*completion screen*/}
           <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-mt-bg/80 backdrop-blur-md transition-opacity duration-700 ${isFinished ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <h2 className={`text-5xl font-bold mb-2 ${testMode === 'multiplayer' ? (myScore > opponentScore ? 'text-mt-main drop-shadow-[0_0_15px_rgba(var(--mt-main-rgb),0.5)]' : myScore < opponentScore ? 'text-mt-error' : 'text-mt-sub') : 'text-mt-main'}`}>
-              {testMode === 'multiplayer' ? (myScore > opponentScore ? "VICTORY!" : myScore < opponentScore ? "DEFEAT" : "DRAW") : testMode === 'time' ? (timeRemaining <= 0 ? "Time's Up!" : "Passage Completed") : testMode === 'zen' ? "Zen Flow" : "Passage Completed"}
+              {testMode === 'multiplayer' ? (myScore > opponentScore ? "VICTORY!" : myScore < opponentScore ? "DEFEAT" : "DRAW") : testMode === 'time' || testMode === 'daily' ? (timeRemaining <= 0 ? "Time's Up!" : "Passage Completed") : testMode === 'zen' ? "Zen Flow" : "Passage Completed"}
             </h2>
             {testMode === 'multiplayer' && eloChange !== null && (
               <div className={`text-2xl font-bold mb-4 ${eloChange >= 0 ? 'text-mt-main' : 'text-mt-error'}`}>
@@ -1326,6 +1390,7 @@ export default function TypingTest() {
               <div className={`w-3 h-3 rounded-full bg-mt-main flex-shrink-0 ${DECORATIONS.find(d => d.id === (userProfile.profileDecoration || 'none'))?.class?.replace('ring-4', 'ring-[2px]') || ''}`}></div>
               <div className="flex items-center gap-1.5 group-hover:text-mt-main transition-colors">
                 <span className="font-bold text-mt-text text-sm tracking-wide">{userProfile.name}</span>
+                {userProfile.crowns > 0 && <span className="text-[0.8rem] leading-none" title={`${userProfile.crowns} Daily Challenge Wins`}>{Array(userProfile.crowns).fill('👑').join('')}</span>}
                 {userProfile.activeTitle && BADGES[userProfile.activeTitle] && (
                   <span className="text-[0.8rem] leading-none opacity-80" title={BADGES[userProfile.activeTitle].title}>{BADGES[userProfile.activeTitle].icon}</span>
                 )}
