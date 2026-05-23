@@ -243,7 +243,7 @@ export default function ReadMode() {
     if (!container) return;
     
     try {
-      const html2canvasModule = await import('html2canvas');
+      const html2canvasModule = await import('html2canvas-pro');
       const html2canvas = html2canvasModule.default ? html2canvasModule.default : html2canvasModule;
       
       const jsPDFModule = await import('jspdf');
