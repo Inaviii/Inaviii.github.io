@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 import DictionaryPopup from './DictionaryPopup';
-import ProfilePopup, { DECORATIONS } from './ProfilePopup';
+import ProfilePopup, { DECORATIONS, BADGES } from './ProfilePopup';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
@@ -1324,7 +1324,12 @@ export default function TypingTest() {
           >
             <div className="flex items-center gap-3">
               <div className={`w-3 h-3 rounded-full bg-mt-main flex-shrink-0 ${DECORATIONS.find(d => d.id === (userProfile.profileDecoration || 'none'))?.class?.replace('ring-4', 'ring-[2px]') || ''}`}></div>
-              <span className="font-bold text-mt-text text-sm tracking-wide group-hover:text-mt-main transition-colors">{userProfile.name}</span>
+              <div className="flex items-center gap-1.5 group-hover:text-mt-main transition-colors">
+                <span className="font-bold text-mt-text text-sm tracking-wide">{userProfile.name}</span>
+                {userProfile.activeTitle && BADGES[userProfile.activeTitle] && (
+                  <span className="text-[0.8rem] leading-none opacity-80" title={BADGES[userProfile.activeTitle].title}>{BADGES[userProfile.activeTitle].icon}</span>
+                )}
+              </div>
               <span className="text-mt-main font-mono text-sm">{userProfile.elo}</span>
               <span className="text-mt-sub text-xs font-mono border-l border-mt-sub/30 pl-3">{userProfile.wins}W - {userProfile.losses}L</span>
             </div>

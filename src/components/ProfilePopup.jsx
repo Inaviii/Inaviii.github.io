@@ -16,7 +16,7 @@ export const CURSORS = [
   { id: 'block', level: 5, name: 'Block', icon: '█' },
 ];
 
-const BADGES = {
+export const BADGES = {
   'first_match': { title: 'First Blood', desc: 'Complete your first multiplayer match.', icon: '⚔️' },
   'speed_demon': { title: 'Speed Demon', desc: 'Reach 100 WPM in any mode.', icon: '⚡' },
   'zen_master': { title: 'Zen Master', desc: 'Complete a Zen mode session.', icon: '🧘' },
@@ -29,6 +29,20 @@ export default function ProfilePopup({ userProfile, isCurrentUser, cursorStyle, 
   const [history, setHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [localDecoration, setLocalDecoration] = useState(userProfile.profileDecoration || 'none');
+  const [activeTitle, setActiveTitle] = useState(userProfile.activeTitle || null);
+
+  const handleSetTitle = async (id) => {
+    if (!isCurrentUser) return;
+    const newTitle = activeTitle === id ? null : id; // Toggle off if clicked again
+    setActiveTitle(newTitle);
+    try {
+      const docRef = doc(db, 'users', userProfile.name.toLowerCase());
+      await updateDoc(docRef, { activeTitle: newTitle });
+      userProfile.activeTitle = newTitle;
+    } catch (e) {
+      console.error("Failed to update active title", e);
+    }
+  };
 
   const handleSetDecoration = async (id) => {
     setLocalDecoration(id);
@@ -97,7 +111,14 @@ export default function ProfilePopup({ userProfile, isCurrentUser, cursorStyle, 
               {userProfile.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-mt-text uppercase tracking-widest">{userProfile.name}</h2>
+              <h2 className="text-2xl font-bold text-mt-main uppercase tracking-widest">{userProfile.name}</h2>
+              {activeTitle && BADGES[activeTitle] ? (
+                <p className="text-mt-sub text-sm font-bold tracking-widest uppercase flex items-center gap-2 mt-1">
+                  <span className="text-lg leading-none">{BADGES[activeTitle].icon}</span> <span className="text-mt-text">{BADGES[activeTitle].title}</span>
+                </p>
+              ) : (
+                <p className="text-mt-sub text-xs font-mono uppercase mt-1">Level {level} Typist</p>
+              )}
               <p className="text-mt-sub text-sm font-mono mt-1">Global Elo: <span className="text-mt-main font-bold">{userProfile.elo}</span></p>
             </div>
           </div>
@@ -166,14 +187,20 @@ export default function ProfilePopup({ userProfile, isCurrentUser, cursorStyle, 
           )}
 
           {activeTab === 'badges' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               {Object.entries(BADGES).map(([id, badge]) => {
                 const isUnlocked = (userProfile.badges || []).includes(id);
+                const isEquipped = activeTitle === id;
                 return (
-                  <div key={id} className={`p-4 rounded-lg border flex flex-col items-center text-center transition-all ${isUnlocked ? 'bg-mt-bg border-mt-main/30 shadow-[0_0_15px_rgba(226,183,20,0.1)]' : 'bg-mt-bg/30 border-mt-sub/10 grayscale opacity-40'}`}>
+                  <div 
+                    key={id} 
+                    onClick={() => { if (isUnlocked && isCurrentUser) handleSetTitle(id); }}
+                    className={`p-4 rounded-lg border flex flex-col items-center text-center transition-all ${isUnlocked ? 'bg-mt-bg hover:border-mt-main/50' : 'bg-mt-bg/30 border-mt-sub/10 grayscale opacity-40'} ${isEquipped ? 'border-mt-main shadow-[0_0_15px_rgba(226,183,20,0.2)] bg-mt-main/10' : 'border-mt-sub/30'} ${isCurrentUser && isUnlocked ? 'cursor-pointer hover:-translate-y-1' : ''}`}
+                  >
                     <span className="text-4xl mb-3 drop-shadow-md">{badge.icon}</span>
-                    <h4 className={`font-bold text-sm mb-1 ${isUnlocked ? 'text-mt-main' : 'text-mt-sub'}`}>{badge.title}</h4>
+                    <h4 className={`font-bold text-sm mb-1 ${isEquipped ? 'text-mt-main' : isUnlocked ? 'text-mt-text' : 'text-mt-sub'}`}>{badge.title}</h4>
                     <p className="text-mt-sub text-[0.65rem] leading-tight">{badge.desc}</p>
+                    {isEquipped && <span className="text-mt-main text-[0.65rem] font-bold uppercase tracking-widest mt-3">✓ Equipped</span>}
                   </div>
                 );
               })}

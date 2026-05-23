@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, limit, getDocs, where, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import ProfilePopup, { DECORATIONS } from './ProfilePopup';
+import ProfilePopup, { DECORATIONS, BADGES } from './ProfilePopup';
 
 export default function Leaderboard() {
   const [scores, setScores] = useState({ passage: [], time30: [], time60: [], time120: [], ranked: [] });
@@ -145,8 +145,15 @@ export default function Leaderboard() {
                     <div className={`w-8 h-8 rounded-full bg-mt-main flex items-center justify-center text-mt-bg text-sm font-bold shrink-0 ${user.profileDecoration ? (DECORATIONS.find(d => d.id === user.profileDecoration)?.class?.replace('ring-4', 'ring-[2px]') || '') : ''}`}>
                       {user.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="truncate max-w-[150px] sm:max-w-[300px]">
-                      {user.name}
+                    <div>
+                      <div className="truncate max-w-[150px] sm:max-w-[300px]">
+                        {user.name}
+                      </div>
+                      {user.activeTitle && BADGES[user.activeTitle] && (
+                        <div className="text-[0.65rem] text-mt-sub font-bold uppercase tracking-widest mt-1 flex items-center gap-1">
+                          <span>{BADGES[user.activeTitle].icon}</span> {BADGES[user.activeTitle].title}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right font-mono text-mt-sub text-sm">{user.wins}W - {user.losses}L</td>
