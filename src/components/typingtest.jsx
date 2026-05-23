@@ -124,9 +124,6 @@ export default function TypingTest() {
   const [bgImage, setBgImage] = useState(() => localStorage.getItem('bgImage') || backgrounds[1].url);
   const [bgOpacity, setBgOpacity] = useState(() => { const v = localStorage.getItem('bgOpacity'); return v !== null ? parseFloat(v) : 0.15; });
   const [volume, setVolume] = useState(() => { const v = localStorage.getItem('volume'); return v !== null ? parseFloat(v) : 0.2; });
-  const [lofiEnabled, setLofiEnabled] = useState(() => localStorage.getItem('lofiEnabled') === 'true');
-  const [lofiVolume, setLofiVolume] = useState(() => { const v = localStorage.getItem('lofiVolume'); return v !== null ? parseFloat(v) : 0.5; });
-  const audioRef = useRef(null);
   const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('fontFamily') || fonts.find(f => f.name === 'Syne Mono')?.value || fonts[0].value);
   const [fontSize, setFontSize] = useState(() => { const v = localStorage.getItem('fontSize'); return v !== null ? parseInt(v) : 36; });
   const [showScansion, setShowScansion] = useState(() => { const v = localStorage.getItem('showScansion'); return v !== null ? v === 'true' : true; });
@@ -136,12 +133,10 @@ export default function TypingTest() {
     localStorage.setItem('bgImage', bgImage);
     localStorage.setItem('bgOpacity', bgOpacity);
     localStorage.setItem('volume', volume);
-    localStorage.setItem('lofiEnabled', lofiEnabled);
-    localStorage.setItem('lofiVolume', lofiVolume);
     localStorage.setItem('fontFamily', fontFamily);
     localStorage.setItem('fontSize', fontSize);
     localStorage.setItem('showScansion', showScansion);
-  }, [bgImage, bgOpacity, volume, lofiEnabled, lofiVolume, fontFamily, fontSize, showScansion]);
+  }, [bgImage, bgOpacity, volume, fontFamily, fontSize, showScansion]);
   const [startTime, setStartTime] = useState(null);
   const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
 
@@ -641,17 +636,6 @@ export default function TypingTest() {
     return () => clearInterval(interval);
   }, [startTime, isFinished, testMode, timeLimit, matchId, playerId]);
 
-  // lofi audio control
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = lofiVolume;
-      if (lofiEnabled) {
-        audioRef.current.play().catch(e => console.error("Audio play failed", e));
-      } else {
-        audioRef.current.pause();
-      }
-    }
-  }, [lofiEnabled, lofiVolume]);
 
   const playClickSound = () => {
     if (volume === 0) return;
@@ -771,7 +755,6 @@ export default function TypingTest() {
         />
       )}
 
-      <audio ref={audioRef} src="/lofi.mp3" loop />
 
       {/* Header */}
       <div className="w-full z-20 flex justify-center shrink-0 mb-8 sm:mb-0">
@@ -984,26 +967,29 @@ export default function TypingTest() {
               </div>
 
               <button
-                onClick={(e) => { e.stopPropagation(); setLofiEnabled(!lofiEnabled); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setVolume(prev => prev > 0 ? 0 : 0.5); 
+                }}
                 onWheel={(e) => {
                   e.stopPropagation();
-                  if (!lofiEnabled) return;
-                  const delta = e.deltaY > 0 ? -0.01 : 0.01;
-                  setLofiVolume(prev => Math.max(0, Math.min(1, prev + delta)));
+                  if (volume === 0) return;
+                  const delta = e.deltaY > 0 ? -0.02 : 0.02;
+                  setVolume(prev => Math.max(0, Math.min(1, prev + delta)));
                 }}
-                className={`relative overflow-hidden py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 select-none ${lofiEnabled ? 'text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
+                className={`relative overflow-hidden py-1 px-4 rounded-lg text-xs font-bold transition-colors duration-200 select-none ${volume > 0 ? 'text-mt-bg' : 'bg-mt-sub-alt text-mt-sub hover:text-mt-text'}`}
               >
-                {lofiEnabled && (
+                {volume > 0 && (
                   <div
                     className="absolute inset-y-0 left-0 bg-mt-main z-0"
-                    style={{ width: `${lofiVolume * 100}%` }}
+                    style={{ width: `${volume * 100}%` }}
                   />
                 )}
-                {lofiEnabled && (
+                {volume > 0 && (
                   <div className="absolute inset-0 bg-mt-main/30 z-0" />
                 )}
                 <span className="relative z-10 whitespace-nowrap">
-                  🎵 Lofi: {lofiEnabled ? `${Math.round(lofiVolume * 100)}%` : 'OFF'}
+                  🔊 Type: {volume > 0 ? `${Math.round(volume * 100)}%` : 'MUTE'}
                 </span>
               </button>
 
