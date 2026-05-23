@@ -90,7 +90,7 @@ export default function Leaderboard() {
           results['ranked'] = [];
         }
 
-        const dateStr = new Date().toISOString().split('T')[0];
+        const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
         try {
           const dailyRef = collection(db, 'daily_leaderboards', dateStr, 'scores');
           const dailyQ = query(dailyRef, orderBy('score', 'desc'), limit(50));
@@ -105,9 +105,10 @@ export default function Leaderboard() {
 
         // Lazy resolution for yesterday's daily challenge
         try {
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yDateStr = yesterday.toISOString().split('T')[0];
+          const laDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }); 
+          const laDate = new Date(laDateStr);
+          laDate.setDate(laDate.getDate() - 1);
+          const yDateStr = laDate.toLocaleDateString('en-CA');
           const yRef = doc(db, 'daily_leaderboards', yDateStr);
           const ySnap = await getDoc(yRef);
 

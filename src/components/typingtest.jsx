@@ -278,7 +278,7 @@ export default function TypingTest() {
     if (!libraryIndex) return;
     setIsFetchingAuthor(true);
 
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
     const rand = seededRandom(dateStr);
 
     const authors = Object.keys(libraryIndex);
@@ -495,7 +495,7 @@ export default function TypingTest() {
         setXpAwarded(true);
 
         if (testMode === 'daily' && userProfile) {
-          const dateStr = new Date().toISOString().split('T')[0];
+          const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
           const dailyScore = Math.round(stats.wpm * Math.pow(stats.acc / 100, 1.5) * 10);
           
           try {
@@ -649,7 +649,7 @@ export default function TypingTest() {
         if (rawScansion) rawScansion = rawScansion.slice(sIndex, eIndex);
       }
     } else if (testMode === 'daily') {
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
       const rand = seededRandom(dateStr);
       const maxStartIndex = Math.max(0, rawLines.length - 20);
       const startIndex = Math.floor(rand() * (maxStartIndex + 1));
