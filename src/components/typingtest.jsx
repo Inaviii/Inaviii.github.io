@@ -204,15 +204,25 @@ export default function TypingTest() {
     }
   }, []);
 
+  // in-memory author cache
+  const authorCache = useRef({});
+
   // helper to fetch heavy author data lazily
   const fetchAuthorData = (authorName) => {
+    if (authorCache.current[authorName]) {
+      setActiveAuthorData(authorCache.current[authorName]);
+      setIsFetchingAuthor(false);
+      setIsAppLoading(false);
+      return;
+    }
+
     setIsFetchingAuthor(true);
     const safeFilename = authorName.toLowerCase().replace(/ /g, "_") + ".json";
 
-    // cache buster
-    fetch(`/library/${safeFilename}?nocache=${new Date().getTime()}`)
+    fetch(`/library/${safeFilename}`)
       .then(res => res.json())
       .then(data => {
+        authorCache.current[authorName] = data;
         setActiveAuthorData(data);
         setIsFetchingAuthor(false);
         setIsAppLoading(false);
