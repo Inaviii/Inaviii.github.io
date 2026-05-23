@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, getDocs, where, getDoc, doc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ProfilePopup from './ProfilePopup';
 
@@ -19,35 +19,6 @@ export default function Leaderboard() {
       }
     } catch (e) {
       console.error("Failed to fetch profile", e);
-    }
-  };
-
-  const migrateLegacyScores = async () => {
-    try {
-      setLoading(true);
-      const legacyRef = collection(db, "leaderboard");
-      const snap = await getDocs(legacyRef);
-      
-      for (const d of snap.docs) {
-        const data = d.data();
-        await addDoc(collection(db, "scores"), {
-          name: data.name || "Anonymous",
-          wpm: data.wpm || 0,
-          acc: data.acc || 0,
-          mode: data.mode || "passage",
-          duration: data.mode === 'time' ? 30 : null,
-          passage: data.mode === 'passage' ? "Legacy Passage" : null,
-          date: data.timestamp ? new Date(data.timestamp.toDate()).toISOString() : new Date().toISOString(),
-          timestamp: data.timestamp || new Date()
-        });
-        await deleteDoc(doc(db, "leaderboard", d.id));
-      }
-      alert("Legacy scores migrated successfully! Refresh the page.");
-    } catch (e) {
-      console.error(e);
-      alert("Migration failed.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -177,16 +148,11 @@ export default function Leaderboard() {
   return (
     <div className="w-full flex flex-col items-center pt-8 pb-16 font-mono tracking-wide relative z-10">
       <div className="w-full max-w-4xl flex flex-col px-4">
-        <div className="flex items-baseline justify-between mb-8 border-b border-mt-sub/20 pb-4">
-          <div className="flex items-baseline">
-            <h1 className="text-4xl font-bold text-mt-text tracking-tighter">
-              latin<span className="text-mt-main">type</span>
-            </h1>
-            <span className="text-mt-sub font-light text-2xl ml-4 tracking-widest uppercase">Leaderboards</span>
-          </div>
-          <button onClick={migrateLegacyScores} className="px-4 py-2 bg-mt-main text-mt-bg font-bold rounded-lg hover:bg-opacity-80 transition-colors text-xs uppercase tracking-widest">
-            Migrate Legacy Scores
-          </button>
+        <div className="flex items-baseline mb-8 border-b border-mt-sub/20 pb-4">
+          <h1 className="text-4xl font-bold text-mt-text tracking-tighter">
+            latin<span className="text-mt-main">type</span>
+          </h1>
+          <span className="text-mt-sub font-light text-2xl ml-4 tracking-widest uppercase">Leaderboards</span>
         </div>
 
         <div className="flex flex-wrap gap-3 mb-4">
