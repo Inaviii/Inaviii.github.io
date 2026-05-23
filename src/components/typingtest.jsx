@@ -1223,16 +1223,10 @@ export default function TypingTest() {
                             <span key={cIdx} className="relative inline-block">
                               {showScansion && distance === 0 && symbol && symbol !== ' ' && (
                                 <span 
-                                  className="absolute top-[-0.6em] -translate-x-1/2 text-[0.85em] text-mt-main/80 select-none flex justify-center items-center pointer-events-none"
-                                  style={{ left: isDiphthong ? '100%' : '50%', width: '1em', height: '1em' }}
+                                  className="absolute top-[-0.7em] -translate-x-1/2 text-[0.7em] text-mt-main/80 select-none leading-none pointer-events-none"
+                                  style={{ left: isDiphthong ? '100%' : '50%', fontFamily: '"Times New Roman", Georgia, serif' }}
                                 >
-                                  {symbol === '—' ? (
-                                    <svg viewBox="0 0 10 10" className="w-[0.9em] h-[0.9em] fill-current"><rect x="0.5" y="4.5" width="9" height="1.2" rx="0.6" /></svg>
-                                  ) : symbol === '∪' ? (
-                                    <svg viewBox="0 0 10 10" className="w-[0.8em] h-[0.8em]"><path d="M 1.5 2 Q 5 9 8.5 2" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
-                                  ) : (
-                                    symbol
-                                  )}
+                                  {symbol}
                                 </span>
                               )}
                               <span className={`${charColor} transition-colors duration-100 drop-shadow-md`}>{char}</span>
