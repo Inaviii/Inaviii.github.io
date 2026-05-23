@@ -1164,25 +1164,32 @@ export default function TypingTest() {
 
                 {testMode !== 'multiplayer' && (
                   <div className="flex flex-col items-center mb-8 w-full max-w-sm">
-                    <input
-                      type="text"
-                      placeholder="Enter name for leaderboard..."
-                      className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center"
-                      maxLength={20}
-                      value={playerName}
-                      onChange={(e) => setPlayerName(e.target.value)}
-                      disabled={scoreSaved || isSaving}
-                    />
+                    {!userProfile ? (
+                      <input
+                        type="text"
+                        placeholder="Enter name for leaderboard..."
+                        className="w-full bg-mt-bg/80 border border-mt-sub/30 rounded-lg px-4 py-2 text-mt-text outline-none focus:border-mt-main transition-colors mb-2 text-center"
+                        maxLength={20}
+                        value={playerName}
+                        onChange={(e) => setPlayerName(e.target.value)}
+                        disabled={scoreSaved || isSaving}
+                      />
+                    ) : (
+                      <div className="text-mt-sub text-sm mb-3">
+                        Submit score to global leaderboards?
+                      </div>
+                    )}
                     <button
                       className={`w-full font-bold py-2 rounded-lg transition-colors ${scoreSaved ? 'bg-mt-main/20 text-mt-main' : 'bg-mt-main text-mt-bg hover:bg-opacity-80'}`}
                       disabled={scoreSaved || isSaving}
                       onClick={async (e) => {
                         e.stopPropagation();
-                        if (!playerName.trim() || isSaving || stats.wpm === 0) return;
+                        const submitName = userProfile ? userProfile.name : playerName.trim();
+                        if (!submitName || isSaving || stats.wpm === 0) return;
                         setIsSaving(true);
                         try {
                           await addDoc(collection(db, "scores"), {
-                            name: playerName.trim(),
+                            name: submitName,
                             wpm: stats.wpm,
                             acc: stats.acc,
                             mode: testMode,
@@ -1199,7 +1206,7 @@ export default function TypingTest() {
                         }
                       }}
                     >
-                      {isSaving ? "Saving..." : (scoreSaved ? "Score Saved!" : "Submit Score")}
+                      {isSaving ? "Saving..." : (scoreSaved ? "Score Saved!" : (userProfile ? `Submit as ${userProfile.name}` : "Submit Score"))}
                     </button>
                   </div>
                 )}
