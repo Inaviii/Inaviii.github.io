@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import DictionaryPopup from './DictionaryPopup';
 import ProfilePopup, { DECORATIONS, BADGES } from './ProfilePopup';
