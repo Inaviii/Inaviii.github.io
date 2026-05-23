@@ -130,7 +130,7 @@ export default function ReadMode() {
         try {
           const res = await lookupWord(word);
           if (res && (res.results.length > 0 || res.uniqueResults.length > 0)) {
-            const pos = res.results[0]?.partOfSpeech || res.uniqueResults[0]?.partOfSpeech || 'UNKNOWN';
+            const pos = res.results[0]?.de?.part?.pofs || res.uniqueResults[0]?.de?.part?.pofs || 'UNKNOWN';
             newCache[word] = pos;
           } else {
             newCache[word] = 'UNKNOWN';
