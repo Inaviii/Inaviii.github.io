@@ -86,6 +86,7 @@ export default function ReadMode() {
 
   // syntax highlighting
   const [syntaxMode, setSyntaxMode] = useState(false);
+  const [selectedBrush, setSelectedBrush] = useState(null);
   const [syntaxCache, setSyntaxCache] = useState({});
 
   // annotations
@@ -111,6 +112,7 @@ export default function ReadMode() {
     if (!syntaxMode || !lines.length) return;
     
     const fetchSyntax = async () => {
+      const storedOverrides = JSON.parse(localStorage.getItem('latintype_syntax_overrides') || '{}');
       const newCache = { ...syntaxCache };
       let updated = false;
       
@@ -119,19 +121,38 @@ export default function ReadMode() {
         line.words.forEach(word => {
           const clean = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
           if (clean && !newCache[clean]) {
-            wordsToLookup.add(clean);
+            if (storedOverrides[clean]) {
+              newCache[clean] = storedOverrides[clean];
+              updated = true;
+            } else {
+              wordsToLookup.add(clean);
+            }
           }
         });
       });
       
-      if (wordsToLookup.size === 0) return;
+      if (wordsToLookup.size === 0 && !updated) return;
 
       for (const word of wordsToLookup) {
         try {
           const res = await lookupWord(word);
           if (res && (res.results.length > 0 || res.uniqueResults.length > 0 || (res.addonResults && res.addonResults.length > 0))) {
-            const pos = res.results[0]?.de?.part?.pofs || res.uniqueResults[0]?.de?.part?.pofs || res.addonResults?.[0]?.baseResults?.[0]?.de?.part?.pofs || 'UNKNOWN';
-            newCache[word] = pos;
+            const allResults = [...res.results, ...res.uniqueResults, ...(res.addonResults?.[0]?.baseResults || [])];
+            
+            allResults.sort((a, b) => {
+              const freqOrder = { 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'I': 7, 'M': 8, 'N': 9, 'X': 10 };
+              const fA = freqOrder[a.de?.tran?.freq] || 99;
+              const fB = freqOrder[b.de?.tran?.freq] || 99;
+              if (fA !== fB) return fA - fB;
+              
+              const posA = a.de?.part?.pofs;
+              const posB = b.de?.part?.pofs;
+              if (posA === 'V' && posB !== 'V') return -1;
+              if (posB === 'V' && posA !== 'V') return 1;
+              return 0;
+            });
+            
+            newCache[word] = allResults[0]?.de?.part?.pofs || 'UNKNOWN';
           } else {
             newCache[word] = 'UNKNOWN';
           }
@@ -599,6 +620,23 @@ export default function ReadMode() {
         </div>
       </div>
 
+      {/* Syntax Legend (Outside Container) */}
+      {syntaxMode && (
+        <div className="hidden xl:flex flex-col gap-2 absolute right-8 top-32 z-30 bg-mt-bg/95 backdrop-blur-md border border-mt-sub/20 p-4 rounded-xl shadow-2xl font-mono text-sm animate-fade-in w-40">
+          <div className="flex flex-col justify-between items-center border-b border-mt-sub/20 pb-2 mb-1 gap-2">
+            <h3 className="text-mt-sub font-bold uppercase tracking-widest text-[0.65rem] text-center w-full">Part of Speech</h3>
+            {selectedBrush && <button onClick={() => setSelectedBrush(null)} className="text-[0.6rem] bg-mt-sub-alt px-2 py-1 w-full rounded text-mt-sub hover:text-mt-text transition-colors shadow-sm border border-mt-sub/10 uppercase tracking-widest font-bold">Clear Brush</button>}
+          </div>
+          
+          <div onClick={() => setSelectedBrush('V')} className={`flex items-center gap-3 cursor-pointer p-1.5 -m-1.5 rounded-lg transition-colors ${selectedBrush === 'V' ? 'bg-mt-sub/20 ring-1 ring-mt-sub/50' : 'hover:bg-mt-sub/10'}`}><div className="w-2.5 h-2.5 rounded-full shrink-0 bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]"></div><span className="text-mt-text select-none">Verb</span></div>
+          <div onClick={() => setSelectedBrush('N')} className={`flex items-center gap-3 cursor-pointer p-1.5 -m-1.5 rounded-lg transition-colors ${selectedBrush === 'N' ? 'bg-mt-sub/20 ring-1 ring-mt-sub/50' : 'hover:bg-mt-sub/10'}`}><div className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]"></div><span className="text-mt-text select-none">Noun</span></div>
+          <div onClick={() => setSelectedBrush('ADJ')} className={`flex items-center gap-3 cursor-pointer p-1.5 -m-1.5 rounded-lg transition-colors ${selectedBrush === 'ADJ' ? 'bg-mt-sub/20 ring-1 ring-mt-sub/50' : 'hover:bg-mt-sub/10'}`}><div className="w-2.5 h-2.5 rounded-full shrink-0 bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div><span className="text-mt-text select-none">Adjective</span></div>
+          <div onClick={() => setSelectedBrush('ADV')} className={`flex items-center gap-3 cursor-pointer p-1.5 -m-1.5 rounded-lg transition-colors ${selectedBrush === 'ADV' ? 'bg-mt-sub/20 ring-1 ring-mt-sub/50' : 'hover:bg-mt-sub/10'}`}><div className="w-2.5 h-2.5 rounded-full shrink-0 bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)]"></div><span className="text-mt-text select-none">Adverb</span></div>
+          <div onClick={() => setSelectedBrush('PRON')} className={`flex items-center gap-3 cursor-pointer p-1.5 -m-1.5 rounded-lg transition-colors ${selectedBrush === 'PRON' ? 'bg-mt-sub/20 ring-1 ring-mt-sub/50' : 'hover:bg-mt-sub/10'}`}><div className="w-2.5 h-2.5 rounded-full shrink-0 bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.5)]"></div><span className="text-mt-text select-none">Pronoun</span></div>
+          <div onClick={() => setSelectedBrush('PREP')} className={`flex items-center gap-3 cursor-pointer p-1.5 -m-1.5 rounded-lg transition-colors ${selectedBrush === 'PREP' ? 'bg-mt-sub/20 ring-1 ring-mt-sub/50' : 'hover:bg-mt-sub/10'}`}><div className="w-2.5 h-2.5 rounded-full shrink-0 bg-gray-400 shadow-[0_0_8px_rgba(156,163,175,0.5)]"></div><span className="text-mt-text select-none">Prep/Conj</span></div>
+        </div>
+      )}
+
       {/* Reader Container */}
       <div className="relative z-10 w-fit max-w-full lg:max-w-[1200px] flex flex-col flex-grow min-h-0 bg-mt-bg/80 backdrop-blur-md rounded-xl shadow-2xl border border-mt-sub/10 mb-4 sm:mb-8 overflow-hidden">
         {isFetchingAuthor ? (
@@ -606,19 +644,6 @@ export default function ReadMode() {
         ) : (
           <div ref={textContainerRef} className={`relative overflow-y-auto scroll-smooth w-full h-full p-8 sm:p-12 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-mt-sub/20 [&::-webkit-scrollbar-thumb]:rounded-full ${isAnnotating ? 'cursor-crosshair' : ''}`}>
             
-            {/* Syntax Legend */}
-            {syntaxMode && (
-              <div className="hidden lg:flex flex-col gap-2 absolute right-8 top-8 z-30 bg-mt-bg/95 backdrop-blur-md border border-mt-sub/20 p-4 rounded-xl shadow-2xl font-mono text-sm pointer-events-none animate-fade-in">
-                <h3 className="text-mt-sub font-bold uppercase tracking-widest text-[0.65rem] border-b border-mt-sub/20 pb-2 mb-1 text-center">Part of Speech</h3>
-                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]"></div><span className="text-mt-text">Verb</span></div>
-                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]"></div><span className="text-mt-text">Noun</span></div>
-                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div><span className="text-mt-text">Adjective</span></div>
-                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)]"></div><span className="text-mt-text">Adverb</span></div>
-                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.5)]"></div><span className="text-mt-text">Pronoun</span></div>
-                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-gray-400 shadow-[0_0_8px_rgba(156,163,175,0.5)]"></div><span className="text-mt-text">Prep/Conj</span></div>
-              </div>
-            )}
-
             <div className="relative w-full" ref={canvasContainerRef}>
               
               <canvas
@@ -649,8 +674,18 @@ export default function ReadMode() {
                           <span 
                             key={wIdx} 
                             className={`inline-block relative cursor-pointer hover:bg-mt-sub/20 rounded px-1 -mx-1 transition-colors ${wIdx !== lineObj.words.length - 1 ? 'mr-3' : ''} ${getSyntaxColor(word)}`}
-                            onClick={() => setSelectedWord(word)}
-                            title="Click to look up"
+                            onClick={() => {
+                              if (syntaxMode && selectedBrush) {
+                                const clean = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
+                                setSyntaxCache(prev => ({ ...prev, [clean]: selectedBrush }));
+                                const storedOverrides = JSON.parse(localStorage.getItem('latintype_syntax_overrides') || '{}');
+                                storedOverrides[clean] = selectedBrush;
+                                localStorage.setItem('latintype_syntax_overrides', JSON.stringify(storedOverrides));
+                              } else {
+                                setSelectedWord(word);
+                              }
+                            }}
+                            title={syntaxMode && selectedBrush ? "Click to paint" : "Click to look up"}
                           >
                             {showScansion && doesElideForward && (
                               <svg className="absolute bottom-[-0.35em] right-[-0.8em] w-[1.2em] h-[0.6em] pointer-events-none text-mt-sub/50 z-0" viewBox="0 0 100 50" preserveAspectRatio="none">
