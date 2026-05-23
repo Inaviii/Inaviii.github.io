@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 import DictionaryPopup from './DictionaryPopup';
-import ProfilePopup from './ProfilePopup';
+import ProfilePopup, { DECORATIONS } from './ProfilePopup';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
@@ -127,6 +127,7 @@ export default function TypingTest() {
   const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('fontFamily') || fonts.find(f => f.name === 'Syne Mono')?.value || fonts[0].value);
   const [fontSize, setFontSize] = useState(() => { const v = localStorage.getItem('fontSize'); return v !== null ? parseInt(v) : 36; });
   const [showScansion, setShowScansion] = useState(() => { const v = localStorage.getItem('showScansion'); return v !== null ? v === 'true' : true; });
+  const [cursorStyle, setCursorStyle] = useState(() => localStorage.getItem('cursorStyle') || 'line');
 
   // save options to local storage whenever they change.
   useEffect(() => {
@@ -136,7 +137,8 @@ export default function TypingTest() {
     localStorage.setItem('fontFamily', fontFamily);
     localStorage.setItem('fontSize', fontSize);
     localStorage.setItem('showScansion', showScansion);
-  }, [bgImage, bgOpacity, volume, fontFamily, fontSize, showScansion]);
+    localStorage.setItem('cursorStyle', cursorStyle);
+  }, [bgImage, bgOpacity, volume, fontFamily, fontSize, showScansion, cursorStyle]);
   const [startTime, setStartTime] = useState(null);
   const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
 
@@ -1284,9 +1286,18 @@ export default function TypingTest() {
                         {userTypedWord.length > word.length && (
                           <span className="text-mt-error-extra opacity-80 relative z-10">{userTypedWord.slice(word.length)}</span>
                         )}
-                        {isCurrentWord && (
-                          <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '0.15em', height: '1.1em', left: `calc(${Math.min(currentInput.length, word.length)}ch + ${Math.min(currentInput.length, word.length) * 0.025}em)`, transition: 'left 0.1s ease-out' }} />
-                        )}
+                        {isCurrentWord && (() => {
+                          const leftPos = `calc(${Math.min(currentInput.length, word.length)}ch + ${Math.min(currentInput.length, word.length) * 0.025}em)`;
+                          if (cursorStyle === 'underline') {
+                            return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '-0.1em', width: '1ch', height: '0.15em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
+                          } else if (cursorStyle === 'block') {
+                            return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-50 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '1ch', height: '1.1em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
+                          } else if (cursorStyle === 'sword') {
+                            return <span className="absolute animate-pulse opacity-90 leading-none" style={{ bottom: '0.1em', left: `calc(${leftPos} - 0.2em)`, transition: 'left 0.1s ease-out', fontSize: '1.1em' }}>🗡️</span>;
+                          } else {
+                            return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '0.15em', height: '1.1em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
+                          }
+                        })()}
                       </div>
                     );
                   })}
@@ -1314,7 +1325,7 @@ export default function TypingTest() {
             className="fixed bottom-4 left-4 z-40 bg-mt-bg/80 backdrop-blur-md border border-mt-sub/20 rounded-2xl px-4 py-3 flex flex-col gap-2 shadow-[0_4px_15px_rgba(0,0,0,0.2)] hover:bg-mt-sub-alt transition-colors cursor-pointer group"
           >
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-mt-main animate-pulse"></div>
+              <div className={`w-3 h-3 rounded-full bg-mt-main flex-shrink-0 ${DECORATIONS.find(d => d.id === (userProfile.profileDecoration || 'none'))?.class.replace('ring-4', 'ring-[2px]') || ''}`}></div>
               <span className="font-bold text-mt-text text-sm tracking-wide group-hover:text-mt-main transition-colors">{userProfile.name}</span>
               <span className="text-mt-main font-mono text-sm">{userProfile.elo}</span>
               <span className="text-mt-sub text-xs font-mono border-l border-mt-sub/30 pl-3">{userProfile.wins}W - {userProfile.losses}L</span>
@@ -1364,6 +1375,9 @@ export default function TypingTest() {
       {showProfilePopup && userProfile && (
         <ProfilePopup 
           userProfile={userProfile} 
+          isCurrentUser={true}
+          cursorStyle={cursorStyle}
+          setCursorStyle={setCursorStyle}
           onClose={() => setShowProfilePopup(false)} 
         />
       )}

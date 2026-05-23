@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+
+export const DECORATIONS = [
+  { id: 'none', level: 1, name: 'Standard' },
+  { id: 'bronze', level: 3, name: 'Bronze Ring', class: 'ring-4 ring-[#cd7f32] shadow-[0_0_15px_rgba(205,127,50,0.5)]' },
+  { id: 'silver', level: 6, name: 'Silver Ring', class: 'ring-4 ring-[#c0c0c0] shadow-[0_0_15px_rgba(192,192,192,0.5)]' },
+  { id: 'gold', level: 12, name: 'Gold Laurel', class: 'ring-4 ring-[#e2b714] shadow-[0_0_15px_rgba(226,183,20,0.5)]' },
+  { id: 'imperial', level: 15, name: 'Imperial Glow', class: 'ring-4 ring-[#800080] shadow-[0_0_25px_rgba(128,0,128,0.8)] animate-[pulse_2s_ease-in-out_infinite]' },
+];
+
+export const CURSORS = [
+  { id: 'line', level: 1, name: 'Standard Line', icon: '|' },
+  { id: 'underline', level: 2, name: 'Underline', icon: '_' },
+  { id: 'block', level: 5, name: 'Block', icon: '█' },
+  { id: 'sword', level: 10, name: 'Roman Sword', icon: '🗡️' },
+];
 
 const BADGES = {
   'first_match': { title: 'First Blood', desc: 'Complete your first multiplayer match.', icon: '⚔️' },
@@ -10,10 +25,29 @@ const BADGES = {
   'scholar': { title: 'Scholar', desc: 'Earn 1,000 Total XP.', icon: '📜' },
 };
 
-export default function ProfilePopup({ userProfile, onClose }) {
+export default function ProfilePopup({ userProfile, isCurrentUser, cursorStyle, setCursorStyle, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [history, setHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [localDecoration, setLocalDecoration] = useState(userProfile.profileDecoration || 'none');
+
+  const handleSetDecoration = async (id) => {
+    setLocalDecoration(id);
+    if (isCurrentUser) {
+      try {
+        const docRef = doc(db, 'users', userProfile.name.toLowerCase());
+        await updateDoc(docRef, { profileDecoration: id });
+        userProfile.profileDecoration = id;
+      } catch (e) {
+        console.error("Failed to update profile decoration", e);
+      }
+    }
+  };
+
+  const handleSetCursor = (id) => {
+    if (setCursorStyle) setCursorStyle(id);
+    localStorage.setItem('cursorStyle', id);
+  };
 
   useEffect(() => {
     if (activeTab === 'history' && history === null) {
@@ -60,7 +94,7 @@ export default function ProfilePopup({ userProfile, onClose }) {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-mt-main flex items-center justify-center text-mt-bg text-2xl font-bold shadow-[0_0_15px_rgba(226,183,20,0.5)]">
+            <div className={`w-12 h-12 rounded-full bg-mt-main flex items-center justify-center text-mt-bg text-2xl font-bold shrink-0 ${DECORATIONS.find(d => d.id === (isCurrentUser ? localDecoration : (userProfile.profileDecoration || 'none')))?.class || 'shadow-[0_0_15px_rgba(226,183,20,0.5)]'}`}>
               {userProfile.name.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -91,6 +125,14 @@ export default function ProfilePopup({ userProfile, onClose }) {
           >
             History
           </button>
+          {isCurrentUser && (
+            <button 
+              className={`pb-3 font-bold uppercase tracking-widest text-sm transition-colors ${activeTab === 'armory' ? 'text-mt-main border-b-2 border-mt-main' : 'text-mt-sub hover:text-mt-text'}`}
+              onClick={() => setActiveTab('armory')}
+            >
+              Armory
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -136,6 +178,56 @@ export default function ProfilePopup({ userProfile, onClose }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {activeTab === 'armory' && isCurrentUser && (
+            <div className="flex flex-col gap-8 h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              <div>
+                <h3 className="text-xl font-bold text-mt-text uppercase tracking-widest mb-4">Cursor Styles</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {CURSORS.map(cursor => {
+                    const isUnlocked = level >= cursor.level;
+                    const isActive = cursorStyle === cursor.id;
+                    return (
+                      <button 
+                        key={cursor.id}
+                        disabled={!isUnlocked}
+                        onClick={() => handleSetCursor(cursor.id)}
+                        className={`p-4 rounded-lg border flex flex-col items-center text-center transition-all ${!isUnlocked ? 'bg-mt-bg/30 border-mt-sub/10 grayscale opacity-40 cursor-not-allowed' : isActive ? 'bg-mt-main/20 border-mt-main shadow-[0_0_15px_rgba(226,183,20,0.2)]' : 'bg-mt-bg border-mt-sub/30 hover:border-mt-main/50 hover:-translate-y-1'}`}
+                      >
+                        <span className={`text-3xl mb-2 font-mono h-10 flex items-center justify-center ${isActive ? 'text-mt-main' : 'text-mt-text'}`}>{cursor.icon}</span>
+                        <h4 className={`font-bold text-xs uppercase ${isActive ? 'text-mt-main' : 'text-mt-sub'}`}>{cursor.name}</h4>
+                        {!isUnlocked && <span className="text-[0.6rem] font-mono text-mt-error mt-2 tracking-widest">🔒 LVL {cursor.level}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-mt-text uppercase tracking-widest mb-4">Profile Borders</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {DECORATIONS.map(deco => {
+                    const isUnlocked = level >= deco.level;
+                    const isActive = localDecoration === deco.id;
+                    return (
+                      <button 
+                        key={deco.id}
+                        disabled={!isUnlocked}
+                        onClick={() => handleSetDecoration(deco.id)}
+                        className={`p-4 rounded-lg border flex flex-col items-center text-center transition-all ${!isUnlocked ? 'bg-mt-bg/30 border-mt-sub/10 grayscale opacity-40 cursor-not-allowed' : isActive ? 'bg-mt-main/20 border-mt-main shadow-[0_0_15px_rgba(226,183,20,0.2)]' : 'bg-mt-bg border-mt-sub/30 hover:border-mt-main/50 hover:-translate-y-1'}`}
+                      >
+                        <div className={`w-10 h-10 rounded-full bg-mt-main flex items-center justify-center text-mt-bg text-xl font-bold mb-4 shrink-0 ${deco.class}`}>
+                          {userProfile.name.charAt(0).toUpperCase()}
+                        </div>
+                        <h4 className={`font-bold text-xs uppercase leading-tight ${isActive ? 'text-mt-main' : 'text-mt-sub'}`}>{deco.name}</h4>
+                        {!isUnlocked && <span className="text-[0.6rem] font-mono text-mt-error mt-2 tracking-widest">🔒 LVL {deco.level}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
