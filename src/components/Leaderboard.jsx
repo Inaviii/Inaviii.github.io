@@ -15,20 +15,30 @@ export default function Leaderboard() {
 
     const updateCountdown = () => {
       const now = new Date();
-      const nextMidnight = new Date();
-      nextMidnight.setUTCHours(24, 0, 0, 0);
+      const formatter = new Intl.DateTimeFormat('en-US', { 
+        timeZone: 'America/Los_Angeles', 
+        hour: 'numeric', minute: 'numeric', second: 'numeric', 
+        hour12: false 
+      });
+      const parts = formatter.formatToParts(now);
       
-      const diffMs = nextMidnight - now;
-      if (diffMs <= 0) {
+      const h = parseInt(parts.find(p => p.type === 'hour').value, 10);
+      const m = parseInt(parts.find(p => p.type === 'minute').value, 10);
+      const s = parseInt(parts.find(p => p.type === 'second').value, 10);
+      
+      const currentSeconds = (h === 24 ? 0 : h) * 3600 + m * 60 + s;
+      const diffSeconds = 86400 - currentSeconds;
+      
+      if (diffSeconds <= 0) {
         setDailyCountdown('00:00:00');
         return;
       }
 
-      const h = Math.floor(diffMs / (1000 * 60 * 60));
-      const m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((diffMs % (1000 * 60)) / 1000);
+      const remH = Math.floor(diffSeconds / 3600);
+      const remM = Math.floor((diffSeconds % 3600) / 60);
+      const remS = diffSeconds % 60;
       
-      setDailyCountdown(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      setDailyCountdown(`${remH.toString().padStart(2, '0')}:${remM.toString().padStart(2, '0')}:${remS.toString().padStart(2, '0')}`);
     };
 
     updateCountdown();
