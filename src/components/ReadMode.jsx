@@ -604,7 +604,21 @@ export default function ReadMode() {
         {isFetchingAuthor ? (
           <div className="text-center text-mt-sub animate-pulse py-12 px-8 sm:px-12">Fetching Text...</div>
         ) : (
-          <div ref={textContainerRef} className={`overflow-y-auto scroll-smooth w-full h-full p-8 sm:p-12 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-mt-sub/20 [&::-webkit-scrollbar-thumb]:rounded-full ${isAnnotating ? 'cursor-crosshair' : ''}`}>
+          <div ref={textContainerRef} className={`relative overflow-y-auto scroll-smooth w-full h-full p-8 sm:p-12 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-mt-sub/20 [&::-webkit-scrollbar-thumb]:rounded-full ${isAnnotating ? 'cursor-crosshair' : ''}`}>
+            
+            {/* Syntax Legend */}
+            {syntaxMode && (
+              <div className="hidden lg:flex flex-col gap-2 absolute right-8 top-8 z-30 bg-mt-bg/95 backdrop-blur-md border border-mt-sub/20 p-4 rounded-xl shadow-2xl font-mono text-sm pointer-events-none animate-fade-in">
+                <h3 className="text-mt-sub font-bold uppercase tracking-widest text-[0.65rem] border-b border-mt-sub/20 pb-2 mb-1 text-center">Part of Speech</h3>
+                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]"></div><span className="text-mt-text">Verb</span></div>
+                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]"></div><span className="text-mt-text">Noun</span></div>
+                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div><span className="text-mt-text">Adjective</span></div>
+                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)]"></div><span className="text-mt-text">Adverb</span></div>
+                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.5)]"></div><span className="text-mt-text">Pronoun</span></div>
+                <div className="flex items-center gap-3"><div className="w-2.5 h-2.5 rounded-full bg-gray-400 shadow-[0_0_8px_rgba(156,163,175,0.5)]"></div><span className="text-mt-text">Prep/Conj</span></div>
+              </div>
+            )}
+
             <div className="relative w-full" ref={canvasContainerRef}>
               
               <canvas
