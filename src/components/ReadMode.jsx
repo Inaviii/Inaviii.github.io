@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import DictionaryPopup from './DictionaryPopup';
 
 const fonts = [
   { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
@@ -61,6 +62,7 @@ export default function ReadMode() {
   const [activeAuthorData, setActiveAuthorData] = useState(null);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isFetchingAuthor, setIsFetchingAuthor] = useState(false);
+  const [selectedWord, setSelectedWord] = useState(null);
 
   // cascades
   const [selectedAuthor, setSelectedAuthor] = useState('');
@@ -323,7 +325,12 @@ export default function ReadMode() {
                         const doesElideForward = wordScansion.endsWith(' ') || nextWordScansion.startsWith(' ');
 
                         return (
-                          <span key={wIdx} className={`inline-block relative ${wIdx !== lineObj.words.length - 1 ? 'mr-3' : ''}`}>
+                          <span 
+                            key={wIdx} 
+                            className={`inline-block relative cursor-pointer hover:bg-mt-sub/20 rounded px-1 -mx-1 transition-colors ${wIdx !== lineObj.words.length - 1 ? 'mr-3' : ''}`}
+                            onClick={() => setSelectedWord(word)}
+                            title="Click to look up"
+                          >
                             {doesElideForward && (
                               <svg className="absolute bottom-[-0.35em] right-[-0.8em] w-[1.2em] h-[0.6em] pointer-events-none text-mt-sub/50 z-0" viewBox="0 0 100 50" preserveAspectRatio="none">
                                 <path d="M 10 15 Q 50 45 90 15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
@@ -359,6 +366,11 @@ export default function ReadMode() {
           </div>
         )}
       </div>
+
+      <DictionaryPopup 
+        word={selectedWord} 
+        onClose={() => setSelectedWord(null)} 
+      />
     </div>
   );
 }

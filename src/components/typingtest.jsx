@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
+import DictionaryPopup from './DictionaryPopup';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
@@ -72,6 +73,7 @@ export default function TypingTest() {
   const [activeAuthorData, setActiveAuthorData] = useState([]);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isFetchingAuthor, setIsFetchingAuthor] = useState(false);
+  const [selectedWord, setSelectedWord] = useState(null);
 
   // time attack mode state
   const [testMode, setTestMode] = useState('passage'); // 'passage', 'time', 'zen', 'multiplayer'
@@ -1195,7 +1197,12 @@ export default function TypingTest() {
                     const doesElideForward = wordScansion.endsWith(' ') || nextWordScansion.startsWith(' ');
 
                     return (
-                      <div key={globalIdx} className={`inline-block relative ${wIdx !== lineObj.words.length - 1 ? 'mr-4' : ''}`}>
+                      <div 
+                        key={globalIdx} 
+                        className={`inline-block relative ${testMode === 'zen' ? 'cursor-pointer hover:bg-mt-sub/20 rounded px-1 -mx-1 transition-colors' : ''} ${wIdx !== lineObj.words.length - 1 ? 'mr-4' : ''}`}
+                        onClick={testMode === 'zen' ? () => setSelectedWord(word) : undefined}
+                        title={testMode === 'zen' ? "Click to look up" : undefined}
+                      >
                         {showScansion && doesElideForward && distance === 0 && (
                           <svg className="absolute bottom-[-0.35em] right-[-0.8em] w-[1.2em] h-[0.6em] pointer-events-none text-mt-sub/50 z-0" viewBox="0 0 100 50" preserveAspectRatio="none">
                             <path d="M 10 15 Q 50 45 90 15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
@@ -1277,6 +1284,10 @@ export default function TypingTest() {
           </div>
         </div>
       )}
+      <DictionaryPopup 
+        word={selectedWord} 
+        onClose={() => setSelectedWord(null)} 
+      />
     </div>
   );
 }
