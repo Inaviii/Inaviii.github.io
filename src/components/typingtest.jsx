@@ -1292,8 +1292,6 @@ export default function TypingTest() {
                             return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '-0.1em', width: '1ch', height: '0.15em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
                           } else if (cursorStyle === 'block') {
                             return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-50 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '1ch', height: '1.1em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
-                          } else if (cursorStyle === 'sword') {
-                            return <span className="absolute animate-pulse opacity-90 leading-none" style={{ bottom: '0.1em', left: `calc(${leftPos} - 0.2em)`, transition: 'left 0.1s ease-out', fontSize: '1.1em' }}>🗡️</span>;
                           } else {
                             return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '0.15em', height: '1.1em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
                           }

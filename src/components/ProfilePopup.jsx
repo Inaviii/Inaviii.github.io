@@ -14,7 +14,6 @@ export const CURSORS = [
   { id: 'line', level: 1, name: 'Standard Line', icon: '|' },
   { id: 'underline', level: 2, name: 'Underline', icon: '_' },
   { id: 'block', level: 5, name: 'Block', icon: '█' },
-  { id: 'sword', level: 10, name: 'Roman Sword', icon: '🗡️' },
 ];
 
 const BADGES = {
