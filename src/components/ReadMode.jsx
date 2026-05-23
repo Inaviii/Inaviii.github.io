@@ -307,23 +307,16 @@ export default function ReadMode() {
             <div className="text-mt-text whitespace-pre-wrap leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
               {lines.map((lineObj, i) => {
 
-                if (!showScansion || !lineObj.scansion) {
-                  return (
-                    <p key={i} className={`py-1 ${i % 5 === 4 ? 'mb-4' : ''}`}>
-                      <span className="inline-block w-8 text-right mr-4 text-mt-sub/40 text-xs font-mono select-none">{lineRange.start + i}</span>
-                      {lineObj.text}
-                    </p>
-                  );
-                }
+
 
                 return (
                   <p key={i} className={`py-1 flex items-center ${i % 5 === 4 ? 'mb-4' : ''}`}>
                     <span className="inline-block w-8 text-right mr-4 text-mt-sub/40 text-xs font-mono select-none shrink-0" style={{ transform: 'translateY(-0.35em)' }}>{lineRange.start + i}</span>
                     <span className="flex items-center flex-wrap" style={{ lineHeight: '1.8' }}>
                       {lineObj.words.map((word, wIdx) => {
-                        const wordScansion = lineObj.scansion[wIdx] || "";
+                        const wordScansion = lineObj.scansion ? (lineObj.scansion[wIdx] || "") : "";
                         const vowelIndices = getVowelIndices(word, wordScansion);
-                        const nextWordScansion = lineObj.scansion[wIdx + 1] || "";
+                        const nextWordScansion = lineObj.scansion ? (lineObj.scansion[wIdx + 1] || "") : "";
                         const doesElideForward = wordScansion.endsWith(' ') || nextWordScansion.startsWith(' ');
 
                         return (
@@ -333,7 +326,7 @@ export default function ReadMode() {
                             onClick={() => setSelectedWord(word)}
                             title="Click to look up"
                           >
-                            {doesElideForward && (
+                            {showScansion && doesElideForward && (
                               <svg className="absolute bottom-[-0.35em] right-[-0.8em] w-[1.2em] h-[0.6em] pointer-events-none text-mt-sub/50 z-0" viewBox="0 0 100 50" preserveAspectRatio="none">
                                 <path d="M 10 15 Q 50 45 90 15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
                               </svg>
@@ -345,7 +338,7 @@ export default function ReadMode() {
 
                               return (
                                 <span key={cIdx} className="relative inline-block mt-3">
-                                  {symbol && symbol !== ' ' && (
+                                  {showScansion && symbol && symbol !== ' ' && (
                                     <span 
                                       className="absolute top-[-0.6em] -translate-x-1/2 text-[0.85em] text-mt-main/80 select-none flex justify-center items-center pointer-events-none"
                                       style={{ left: isDiphthong ? '100%' : '50%', width: '1em', height: '1em' }}
