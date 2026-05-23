@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const BADGES = {
   'first_match': { title: 'First Blood', desc: 'Complete your first multiplayer match.', icon: '⚔️' },
@@ -10,6 +12,31 @@ const BADGES = {
 
 export default function ProfilePopup({ userProfile, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [history, setHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'history' && history === null) {
+      const fetchHistory = async () => {
+        setLoadingHistory(true);
+        try {
+          const q = query(
+            collection(db, 'scores'),
+            where('name', '==', userProfile.name),
+            orderBy('timestamp', 'desc'),
+            limit(10)
+          );
+          const snap = await getDocs(q);
+          setHistory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (e) {
+          console.error("Failed to fetch history", e);
+        } finally {
+          setLoadingHistory(false);
+        }
+      };
+      fetchHistory();
+    }
+  }, [activeTab, history, userProfile.name]);
 
   const xp = userProfile.xp || 0;
   const level = userProfile.level || 1;
@@ -50,6 +77,12 @@ export default function ProfilePopup({ userProfile, onClose }) {
             onClick={() => setActiveTab('badges')}
           >
             Badges
+          </button>
+          <button 
+            className={`pb-3 font-bold uppercase tracking-widest text-sm transition-colors ${activeTab === 'history' ? 'text-mt-main border-b-2 border-mt-main' : 'text-mt-sub hover:text-mt-text'}`}
+            onClick={() => setActiveTab('history')}
+          >
+            History
           </button>
         </div>
 
@@ -96,6 +129,33 @@ export default function ProfilePopup({ userProfile, onClose }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="flex flex-col gap-3 h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {loadingHistory ? (
+                <div className="text-center py-12 text-mt-sub animate-pulse font-mono uppercase tracking-widest text-sm">Loading Archives...</div>
+              ) : history && history.length > 0 ? (
+                history.map(score => (
+                  <div key={score.id} className="bg-mt-bg p-4 rounded-lg border border-mt-sub/10 flex justify-between items-center hover:border-mt-sub/30 transition-colors shrink-0">
+                    <div>
+                      <h4 className="font-bold text-mt-text uppercase tracking-widest text-sm">
+                        {score.mode === 'time' ? `${score.duration}s Time Attack` : score.mode === 'passage' ? 'Passage Mode' : score.mode}
+                      </h4>
+                      <p className="text-mt-sub/80 text-xs font-mono mt-1">
+                        {score.passage || new Date(score.timestamp?.toDate() || score.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-light text-mt-main leading-none">{score.wpm}</div>
+                      <div className="text-[0.65rem] text-mt-sub font-mono uppercase tracking-widest mt-1">{score.acc}% Acc</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-mt-sub/50 italic">No public records found.</div>
+              )}
             </div>
           )}
         </div>

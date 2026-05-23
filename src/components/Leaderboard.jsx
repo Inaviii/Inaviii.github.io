@@ -74,8 +74,18 @@ export default function Leaderboard() {
     fetchScores();
   }, []);
 
-  const renderTable = (data) => {
-    if (!data || data.length === 0) return <div className="text-mt-sub mt-16 text-center italic text-lg">No scores yet for this mode. Be the first to claim glory!</div>;
+  const renderTable = (rawData) => {
+    if (!rawData || rawData.length === 0) return <div className="text-mt-sub mt-16 text-center italic text-lg">No scores yet for this mode. Be the first to claim glory!</div>;
+
+    // Collapse to best score per unique player
+    const bestScoresMap = {};
+    rawData.forEach(score => {
+      const nameKey = (score.name || "Anonymous").toLowerCase();
+      if (!bestScoresMap[nameKey] || score.wpm > bestScoresMap[nameKey].wpm) {
+        bestScoresMap[nameKey] = score;
+      }
+    });
+    const data = Object.values(bestScoresMap).sort((a, b) => b.wpm - a.wpm);
 
     return (
       <div className="w-full mt-6 overflow-hidden rounded-lg shadow-lg border border-mt-sub/20 bg-mt-bg/80 backdrop-blur-md">
