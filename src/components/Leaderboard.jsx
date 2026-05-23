@@ -1,12 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
+import ProfilePopup from './ProfilePopup';
 
 export default function Leaderboard() {
   const [scores, setScores] = useState({ passage: [], time30: [], time60: [], time120: [], ranked: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ranked');
+  const [selectedProfile, setSelectedProfile] = useState(null);
   const playerId = localStorage.getItem('latintype_pid');
+
+  const handleRowClick = async (name) => {
+    if (!name || name === 'Anonymous') return;
+    try {
+      const docSnap = await getDoc(doc(db, 'users', name.toLowerCase()));
+      if (docSnap.exists()) {
+        setSelectedProfile({ ...docSnap.data(), docId: name.toLowerCase() });
+      }
+    } catch (e) {
+      console.error("Failed to fetch profile", e);
+    }
+  };
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -77,7 +91,7 @@ export default function Leaderboard() {
           </thead>
           <tbody className="divide-y divide-mt-sub/10">
             {data.map((score, index) => (
-              <tr key={score.id} className="hover:bg-mt-sub-alt/40 transition-colors">
+              <tr key={score.id} onClick={() => handleRowClick(score.name)} className="hover:bg-mt-sub-alt/60 transition-colors cursor-pointer">
                 <td className="px-6 py-5 text-center font-bold text-mt-sub">{index + 1}</td>
                 <td className="px-6 py-5 font-bold text-mt-text">
                   <div className="truncate max-w-[150px] sm:max-w-[300px]">{score.name || "Anonymous"}</div>
@@ -115,7 +129,7 @@ export default function Leaderboard() {
               const rankedName = localStorage.getItem('latintype_ranked_name');
               const isCurrentUser = user.id === rankedName;
               return (
-                <tr key={user.id} className={`hover:bg-mt-sub-alt/40 transition-colors ${isCurrentUser ? 'bg-mt-main/20 border-l-4 border-l-mt-main' : ''}`}>
+                <tr key={user.id} onClick={() => setSelectedProfile(user)} className={`hover:bg-mt-sub-alt/60 transition-colors cursor-pointer ${isCurrentUser ? 'bg-mt-main/20 border-l-4 border-l-mt-main' : ''}`}>
                   <td className={`px-6 py-5 text-center font-bold ${index < 3 ? 'text-mt-main' : 'text-mt-sub'}`}>{index + 1}</td>
                   <td className="px-6 py-5 font-bold text-mt-text truncate max-w-[150px] sm:max-w-[300px]">
                     {user.name}
@@ -157,6 +171,13 @@ export default function Leaderboard() {
           activeTab === 'ranked' ? renderRankedTable(scores['ranked']) : renderTable(scores[activeTab])
         )}
       </div>
+
+      {selectedProfile && (
+        <ProfilePopup 
+          userProfile={selectedProfile}
+          onClose={() => setSelectedProfile(null)}
+        />
+      )}
     </div>
   );
 }
