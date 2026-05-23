@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, setDoc, getDoc, orderBy, limit, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 import DictionaryPopup from './DictionaryPopup';
+import ProfilePopup from './ProfilePopup';
 
 const backgrounds = [
   { name: "None (Solid Dark)", url: "none" },
@@ -101,6 +102,7 @@ export default function TypingTest() {
   // user profile state
   const [userProfile, setUserProfile] = useState(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [tempUsername, setTempUsername] = useState('');
 
   // cascading selection state
@@ -116,6 +118,7 @@ export default function TypingTest() {
   const [currentInput, setCurrentInput] = useState('');
   const [typedHistory, setTypedHistory] = useState([]);
   const [isFinished, setIsFinished] = useState(false);
+  const [xpAwarded, setXpAwarded] = useState(false);
 
   // options & analytics state
   const [bgImage, setBgImage] = useState(() => localStorage.getItem('bgImage') || backgrounds[1].url);
@@ -186,18 +189,21 @@ export default function TypingTest() {
   // fetch user profile on mount
   useEffect(() => {
     const savedName = localStorage.getItem('latintype_ranked_name');
+    const declinedName = localStorage.getItem('latintype_declined_name');
     if (savedName) {
       const fetchProfile = async () => {
         try {
           const docSnap = await getDoc(doc(db, 'users', savedName));
           if (docSnap.exists()) {
-            setUserProfile({ ...docSnap.data(), docId: savedName });
+            setUserProfile({ xp: 0, level: 1, badges: [], ...docSnap.data(), docId: savedName });
           }
         } catch (e) {
           console.error("Error fetching profile", e);
         }
       };
       fetchProfile();
+    } else if (!declinedName) {
+      setShowUsernamePrompt(true);
     }
   }, []);
 
@@ -445,6 +451,43 @@ export default function TypingTest() {
     }
   }, [isFinished, testMode, userProfile, opponentProfile, myScore, opponentScore, eloChange, playerId]);
 
+  // General end of test: compute XP and Badges
+  useEffect(() => {
+    if (isFinished && userProfile && !xpAwarded) {
+      const calculateXP = async () => {
+        setXpAwarded(true);
+        let earnedXp = Math.floor(stats.correctKeys / 5) * 5; // 5 XP per roughly word length
+        
+        if (testMode === 'time') earnedXp += 50; 
+        if (testMode === 'multiplayer') {
+          earnedXp += 100;
+          if (myScore > opponentScore) earnedXp += 50;
+        }
+
+        const newTotalXp = (userProfile.xp || 0) + earnedXp;
+        const newLevel = Math.floor(Math.sqrt(newTotalXp / 100)) + 1;
+
+        const newBadges = [...(userProfile.badges || [])];
+        if (testMode === 'multiplayer' && !newBadges.includes('first_match')) newBadges.push('first_match');
+        if (stats.wpm >= 100 && !newBadges.includes('speed_demon')) newBadges.push('speed_demon');
+        if (testMode === 'zen' && !newBadges.includes('zen_master')) newBadges.push('zen_master');
+        if (testMode === 'time' && !newBadges.includes('time_lord')) newBadges.push('time_lord');
+        if (newTotalXp >= 1000 && !newBadges.includes('scholar')) newBadges.push('scholar');
+
+        setUserProfile(prev => ({ ...prev, xp: newTotalXp, level: newLevel, badges: newBadges }));
+
+        try {
+          await updateDoc(doc(db, 'users', userProfile.docId), {
+            xp: newTotalXp,
+            level: newLevel,
+            badges: newBadges
+          });
+        } catch (e) { console.error("Failed to update XP", e); }
+      };
+      calculateXP();
+    }
+  }, [isFinished, userProfile, xpAwarded, stats, testMode, myScore, opponentScore]);
+
   // multiplayer countdown
   useEffect(() => {
     if (multiplayerCountdown === null) return;
@@ -469,14 +512,22 @@ export default function TypingTest() {
       
       let profile;
       if (docSnap.exists()) {
-        profile = docSnap.data();
+        profile = {
+          xp: 0,
+          level: 1,
+          badges: [],
+          ...docSnap.data()
+        };
       } else {
         profile = {
           name: cleanName,
           elo: 1200,
           wins: 0,
           losses: 0,
-          draws: 0
+          draws: 0,
+          xp: 0,
+          level: 1,
+          badges: []
         };
         await setDoc(docRef, profile);
       }
@@ -497,6 +548,7 @@ export default function TypingTest() {
     setStartTime(null);
     setStats({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
     setIsFinished(false);
+    setXpAwarded(false);
     setTimeRemaining(testMode === 'time' ? timeLimit : null);
     setScoreSaved(false);
     setIsSaving(false);
@@ -1253,21 +1305,40 @@ export default function TypingTest() {
         </div>
       </div>
       
-      {userProfile && (
-        <div className="fixed bottom-4 left-4 z-40 bg-mt-bg/80 backdrop-blur-md border border-mt-sub/20 rounded-full px-4 py-2 flex items-center gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.2)] hover:bg-mt-sub-alt/50 transition-colors cursor-default">
-          <div className="w-2 h-2 rounded-full bg-mt-main animate-pulse"></div>
-          <span className="font-bold text-mt-text text-sm tracking-wide">{userProfile.name}</span>
-          <span className="text-mt-main font-mono text-sm">{userProfile.elo}</span>
-          <span className="text-mt-sub text-xs font-mono border-l border-mt-sub/30 pl-3">{userProfile.wins}W - {userProfile.losses}L</span>
-        </div>
-      )}
+      {userProfile && (() => {
+        const xp = userProfile.xp || 0;
+        const level = userProfile.level || 1;
+        const prevLevelXp = Math.pow(level - 1, 2) * 100;
+        const nextLevelXp = Math.pow(level, 2) * 100;
+        const progress = Math.max(0, Math.min(100, ((xp - prevLevelXp) / (nextLevelXp - prevLevelXp)) * 100));
+
+        return (
+          <div 
+            onClick={() => setShowProfilePopup(true)}
+            className="fixed bottom-4 left-4 z-40 bg-mt-bg/80 backdrop-blur-md border border-mt-sub/20 rounded-2xl px-4 py-3 flex flex-col gap-2 shadow-[0_4px_15px_rgba(0,0,0,0.2)] hover:bg-mt-sub-alt transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-mt-main animate-pulse"></div>
+              <span className="font-bold text-mt-text text-sm tracking-wide group-hover:text-mt-main transition-colors">{userProfile.name}</span>
+              <span className="text-mt-main font-mono text-sm">{userProfile.elo}</span>
+              <span className="text-mt-sub text-xs font-mono border-l border-mt-sub/30 pl-3">{userProfile.wins}W - {userProfile.losses}L</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-mt-sub text-[0.65rem] font-bold uppercase tracking-widest min-w-[3rem]">Lvl {level}</span>
+              <div className="w-full bg-mt-bg border border-mt-sub/10 rounded-full h-1.5 overflow-hidden flex-1">
+                <div className="bg-mt-main h-full rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Modals */}
       {showUsernamePrompt && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-mt-bg/80 backdrop-blur-md">
           <div className="bg-mt-sub-alt p-8 rounded-xl shadow-2xl border border-mt-sub/20 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-mt-main mb-4 uppercase tracking-widest text-center">Ranked Multiplayer</h2>
-            <p className="text-mt-sub text-sm mb-6 text-center">Enter a username to establish your Elo rating and compete on the global leaderboard.</p>
+            <h2 className="text-2xl font-bold text-mt-main mb-4 uppercase tracking-widest text-center">Create Profile</h2>
+            <p className="text-mt-sub text-sm mb-6 text-center">Enter a username to earn XP, collect badges, and compete globally!</p>
             <input 
               type="text" 
               maxLength={15} 
@@ -1278,13 +1349,29 @@ export default function TypingTest() {
               onChange={e => setTempUsername(e.target.value)} 
               onKeyDown={e => e.key === 'Enter' && handleSetUsername()}
             />
-            <div className="flex gap-4">
-              <button onClick={() => setShowUsernamePrompt(false)} className="flex-1 py-3 bg-mt-bg text-mt-sub hover:text-mt-text rounded-lg font-bold transition-colors">Cancel</button>
-              <button onClick={handleSetUsername} className="flex-1 py-3 bg-mt-main text-mt-bg hover:bg-opacity-80 rounded-lg font-bold shadow-lg transition-colors">Begin</button>
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-4">
+                <button onClick={() => setShowUsernamePrompt(false)} className="flex-1 py-3 bg-mt-bg text-mt-sub hover:text-mt-text rounded-lg font-bold transition-colors">Cancel</button>
+                <button onClick={handleSetUsername} className="flex-1 py-3 bg-mt-main text-mt-bg hover:bg-opacity-80 rounded-lg font-bold shadow-lg transition-colors">Begin</button>
+              </div>
+              <button 
+                onClick={() => { localStorage.setItem('latintype_declined_name', 'true'); setShowUsernamePrompt(false); }} 
+                className="text-mt-sub hover:text-mt-text text-xs uppercase tracking-widest transition-colors font-bold mt-2"
+              >
+                Not Right Now (Play as Guest)
+              </button>
             </div>
           </div>
         </div>
       )}
+      
+      {showProfilePopup && userProfile && (
+        <ProfilePopup 
+          userProfile={userProfile} 
+          onClose={() => setShowProfilePopup(false)} 
+        />
+      )}
+
       <DictionaryPopup 
         word={selectedWord} 
         onClose={() => setSelectedWord(null)} 
