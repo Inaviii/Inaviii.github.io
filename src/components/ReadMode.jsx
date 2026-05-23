@@ -92,6 +92,10 @@ export default function ReadMode() {
 
   const canvasRef = useRef(null);
   const canvasContainerRef = useRef(null);
+  
+  // Track strokes for uniform transparency and redraws
+  const strokesRef = useRef([]);
+  const currentStrokeRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem('showScansion', showScansion);
@@ -119,15 +123,8 @@ export default function ReadMode() {
       canvas.width = container.scrollWidth;
       canvas.height = container.scrollHeight;
       canvas.style.width = `${container.scrollWidth}px`;
-      canvas.style.height = `${container.scrollHeight}px`;
-      
-      if (data) {
-        try {
-          ctx.putImageData(data, 0, 0);
-        } catch (e) {
-          console.warn("Canvas exceeds max size; unable to restore image data.", e);
-        }
-      }
+      // Restore drawing data from stroke history instead of image data to maintain high quality on resize
+      redrawCanvas();
     };
 
     resizeCanvas();
@@ -136,64 +133,87 @@ export default function ReadMode() {
     return () => observer.disconnect();
   }, [lines, fontSize, showScansion, isAnnotating]); // Re-sync when layout might change
 
+  const redrawCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const drawStroke = (stroke) => {
+      if (!stroke.points || stroke.points.length === 0) return;
+      
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = stroke.width;
+      
+      if (stroke.tool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
+        ctx.globalAlpha = 1.0;
+      } else {
+        // 'multiply' doesn't look great on dark themes, so we use standard alpha blending
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = stroke.color;
+        ctx.globalAlpha = stroke.tool === 'highlighter' ? 0.4 : 1.0;
+      }
+      ctx.stroke();
+    };
+
+    strokesRef.current.forEach(drawStroke);
+    if (currentStrokeRef.current) {
+      drawStroke(currentStrokeRef.current);
+    }
+  };
+
   // drawing methods
   const startDrawing = (e) => {
     if (!isAnnotating) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext('2d');
     
     setIsDrawing(true);
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
     
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = strokeWidth;
+    currentStrokeRef.current = {
+      tool: annotateTool,
+      color: strokeColor,
+      width: strokeWidth,
+      points: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
+    };
     
-    if (annotateTool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-      ctx.globalCompositeOperation = annotateTool === 'highlighter' ? 'multiply' : 'source-over';
-      ctx.strokeStyle = strokeColor;
-      // Highlighters look better slightly transparent even with multiply
-      if (annotateTool === 'highlighter') {
-        ctx.globalAlpha = 0.5;
-      } else {
-        ctx.globalAlpha = 1.0;
-      }
-    }
+    redrawCanvas();
   };
 
   const draw = (e) => {
-    if (!isDrawing || !isAnnotating) return;
+    if (!isDrawing || !isAnnotating || !currentStrokeRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext('2d');
     
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.stroke();
+    currentStrokeRef.current.points.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    redrawCanvas();
   };
 
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.getContext('2d').closePath();
+    
+    if (currentStrokeRef.current) {
+      strokesRef.current.push(currentStrokeRef.current);
+      currentStrokeRef.current = null;
     }
   };
 
   const handleClearAnnotations = () => {
     if (window.confirm("Are you sure you want to clear all annotations?")) {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
+      strokesRef.current = [];
+      redrawCanvas();
     }
   };
 
