@@ -1181,11 +1181,14 @@ export default function TypingTest() {
                         if (!playerName.trim() || isSaving || stats.wpm === 0) return;
                         setIsSaving(true);
                         try {
-                          await addDoc(collection(db, "leaderboard"), {
+                          await addDoc(collection(db, "scores"), {
                             name: playerName.trim(),
                             wpm: stats.wpm,
                             acc: stats.acc,
                             mode: testMode,
+                            duration: testMode === 'time' ? timeLimit : null,
+                            passage: testMode === 'passage' ? `${selectedAuthor} - ${selectedWork}` : null,
+                            date: new Date().toISOString(),
                             timestamp: new Date()
                           });
                           setScoreSaved(true);
