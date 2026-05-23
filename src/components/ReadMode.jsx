@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import DictionaryPopup from './DictionaryPopup';
 
 const fonts = [
@@ -190,6 +188,13 @@ export default function ReadMode() {
     if (!container) return;
     
     try {
+      // Dynamically import the heavy PDF libraries only when requested
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default ? html2canvasModule.default : html2canvasModule;
+      
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.jsPDF ? jsPDFModule.jsPDF : jsPDFModule.default;
+
       const canvas = await html2canvas(container, {
         backgroundColor: '#1E1E2E', // Match dark theme
         scale: 2 // High resolution
