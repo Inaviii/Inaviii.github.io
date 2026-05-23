@@ -69,7 +69,7 @@ const isDiphthongStart = (word, cIdx, vowelIndices) => {
          !vowelIndices.includes(cIdx + 1);
 };
 
-export default function TypingTest() {
+export default function TypingTest({ ghostData, setGhostData }) {
   // lazy loading architecture state
   const [libraryIndex, setLibraryIndex] = useState(null);
   const [activeAuthorData, setActiveAuthorData] = useState([]);
@@ -141,6 +141,7 @@ export default function TypingTest() {
   }, [bgImage, bgOpacity, volume, fontFamily, fontSize, showScansion, cursorStyle]);
   const [startTime, setStartTime] = useState(null);
   const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
+  const [ghostProgress, setGhostProgress] = useState(0);
 
   // leaderboard state
   const [playerName, setPlayerName] = useState('');
@@ -182,6 +183,29 @@ export default function TypingTest() {
     if (selectedWork) localStorage.setItem('selectedWork', selectedWork);
     if (selectedPieceId) localStorage.setItem('selectedPieceId', selectedPieceId);
   }, [selectedAuthor, selectedWork, selectedPieceId]);
+
+  useEffect(() => {
+    if (ghostData && libraryIndex) {
+      setTestMode(ghostData.mode);
+      if (ghostData.mode === 'time') {
+        setTimeLimit(ghostData.duration);
+      } else if (ghostData.mode === 'passage' && ghostData.passage) {
+        const parts = ghostData.passage.split(' - ');
+        if (parts.length === 2 && libraryIndex[parts[0]] && libraryIndex[parts[0]][parts[1]]) {
+          const auth = parts[0];
+          const wk = parts[1];
+          setSelectedAuthor(auth);
+          setSelectedWork(wk);
+          
+          const availablePieces = libraryIndex[auth][wk];
+          if (!availablePieces.some(p => p.id === selectedPieceId)) {
+            setSelectedPieceId(availablePieces[0].id);
+          }
+          fetchAuthorData(auth);
+        }
+      }
+    }
+  }, [ghostData, libraryIndex]);
 
   // fetch user profile on mount
   useEffect(() => {
@@ -705,6 +729,11 @@ export default function TypingTest() {
         return { ...prev, wpm: newWpm, acc: newAcc };
       });
 
+      if (ghostData && ghostData.wpm > 0) {
+        const ghostChars = Math.floor(timeElapsedMin * (ghostData.wpm * 5));
+        setGhostProgress(ghostChars);
+      }
+
       if (testMode === 'time' || testMode === 'multiplayer' || testMode === 'daily') {
         const tLimit = testMode === 'multiplayer' ? 30 : timeLimit;
         const remaining = Math.max(0, tLimit - Math.floor(timeElapsedMs / 1000));
@@ -1189,6 +1218,25 @@ export default function TypingTest() {
           </div>
         )}
 
+        {ghostData && (
+          <div className="w-full max-w-[1200px] mb-4 bg-blue-500/10 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-blue-500/30 flex justify-between items-center relative z-20">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl animate-pulse drop-shadow-md">👻</span>
+              <div>
+                <span className="text-blue-300 font-bold uppercase tracking-widest text-sm">Racing {ghostData.name}</span>
+                <span className="text-blue-400/80 text-xs ml-2">({ghostData.wpm} WPM)</span>
+              </div>
+            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setGhostData(null); }}
+              className="text-mt-sub hover:text-mt-error transition-colors font-bold uppercase tracking-widest text-xs px-3 py-1 bg-mt-sub-alt/50 hover:bg-mt-error/20 rounded"
+              title="Cancel Race"
+            >
+              Cancel Race
+            </button>
+          </div>
+        )}
+
         <input
           ref={inputRef}
           type="text"
@@ -1310,7 +1358,26 @@ export default function TypingTest() {
             className={`absolute top-0 left-0 w-full transition-all duration-500 ease-in-out ${(isFinished || isFetchingAuthor) ? 'blur-sm opacity-30' : ''}`}
             style={{ transform: `translateY(${translateY})`, height: `${lines.length * lineHeightPx}px` }}
           >
-            {visibleLines.map((lineObj, relativeIdx) => {
+            {(() => {
+              let ghostWordGlobalIdx = -1;
+              let ghostCharIdx = 0;
+              if (ghostData && ghostProgress > 0) {
+                let charCount = 0;
+                for (let l = 0; l < lines.length; l++) {
+                  for (let w = 0; w < lines[l].words.length; w++) {
+                    const wordObj = lines[l].words[w];
+                    const wordLen = wordObj.word.length + 1; // +1 for space
+                    if (charCount + wordLen > ghostProgress) {
+                      ghostWordGlobalIdx = wordObj.globalIdx;
+                      ghostCharIdx = ghostProgress - charCount;
+                      break;
+                    }
+                    charCount += wordLen;
+                  }
+                  if (ghostWordGlobalIdx !== -1) break;
+                }
+              }
+              return visibleLines.map((lineObj, relativeIdx) => {
               const lIdx = renderStart + relativeIdx;
               const distance = lIdx - safeActiveLineIndex;
 
@@ -1381,12 +1448,16 @@ export default function TypingTest() {
                             return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '0.15em', height: '1.1em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
                           }
                         })()}
+                        {ghostWordGlobalIdx === wordObj.globalIdx && (() => {
+                          const leftPos = `calc(${Math.min(ghostCharIdx, word.length)}ch + ${Math.min(ghostCharIdx, word.length) * 0.025}em)`;
+                          return <span className="absolute bg-blue-400 animate-pulse rounded-sm opacity-60 shadow-[0_0_12px_rgba(96,165,250,0.8)] z-20" style={{ bottom: '0.1em', width: '0.2em', height: '1.1em', left: leftPos, transition: 'left 0.1s linear' }} />;
+                        })()}
                       </div>
                     );
                   })}
                 </div>
               );
-            })}
+            })})()}
           </div>
         </div>
 

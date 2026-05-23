@@ -3,7 +3,7 @@ import { collection, query, orderBy, limit, getDocs, where, getDoc, doc, runTran
 import { db } from '../firebase';
 import ProfilePopup, { DECORATIONS, BADGES } from './ProfilePopup';
 
-export default function Leaderboard() {
+export default function Leaderboard({ onPlayAgainst }) {
   const [scores, setScores] = useState({ passage: [], time30: [], time60: [], time120: [], ranked: [], daily: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ranked');
@@ -184,7 +184,7 @@ export default function Leaderboard() {
           </thead>
           <tbody className="divide-y divide-mt-sub/10">
             {data.map((score, index) => (
-              <tr key={score.id} onClick={() => handleRowClick(score.name)} className="hover:bg-mt-sub-alt/60 transition-colors cursor-pointer">
+              <tr key={score.id} onClick={() => handleRowClick(score.name)} className="hover:bg-mt-sub-alt/60 transition-colors cursor-pointer group">
                 <td className="px-6 py-5 text-center font-bold text-mt-sub">{index + 1}</td>
                 <td className="px-6 py-5 font-bold text-mt-text">
                   <div className="truncate max-w-[150px] sm:max-w-[300px]">{score.name || "Anonymous"}</div>
@@ -195,7 +195,18 @@ export default function Leaderboard() {
                 <td className="px-6 py-5 text-right text-mt-text font-mono">{score.acc}%</td>
                 {activeTab !== 'daily' && (
                   <td className="px-6 py-5 text-right text-mt-sub/80 text-sm hidden sm:table-cell">
-                    {new Date(score.date).toLocaleDateString()}
+                    <div className="flex items-center justify-end gap-4">
+                      <span>{new Date(score.date).toLocaleDateString()}</span>
+                      {onPlayAgainst && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onPlayAgainst(score); }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-mt-main text-mt-bg px-3 py-1 rounded text-xs font-bold uppercase tracking-wider hover:bg-white shadow-[0_0_10px_rgba(226,183,20,0.4)]"
+                          title={`Play against ${score.name}'s Ghost`}
+                        >
+                          Race ⚔️
+                        </button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
