@@ -1448,7 +1448,7 @@ export default function TypingTest({ ghostData, setGhostData }) {
                             return <span className="absolute bg-mt-main animate-pulse rounded-sm opacity-90 shadow-[0_0_8px_rgba(226,183,20,0.4)]" style={{ bottom: '0.1em', width: '0.15em', height: '1.1em', left: leftPos, transition: 'left 0.1s ease-out' }} />;
                           }
                         })()}
-                        {ghostWordGlobalIdx === wordObj.globalIdx && (() => {
+                        {ghostWordGlobalIdx === wObj.globalIdx && (() => {
                           const leftPos = `calc(${Math.min(ghostCharIdx, word.length)}ch + ${Math.min(ghostCharIdx, word.length) * 0.025}em)`;
                           return <span className="absolute bg-blue-400 animate-pulse rounded-sm opacity-60 shadow-[0_0_12px_rgba(96,165,250,0.8)] z-20" style={{ bottom: '0.1em', width: '0.2em', height: '1.1em', left: leftPos, transition: 'left 0.1s linear' }} />;
                         })()}
