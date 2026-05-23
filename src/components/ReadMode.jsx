@@ -243,28 +243,51 @@ export default function ReadMode() {
     if (!container) return;
     
     try {
-      // Dynamically import the heavy PDF libraries only when requested
       const html2canvasModule = await import('html2canvas');
       const html2canvas = html2canvasModule.default ? html2canvasModule.default : html2canvasModule;
       
       const jsPDFModule = await import('jspdf');
       const jsPDF = jsPDFModule.jsPDF ? jsPDFModule.jsPDF : jsPDFModule.default;
 
+      // Use a scale of 1 to prevent the internal canvas from exceeding browser size limits on long texts
       const canvas = await html2canvas(container, {
-        backgroundColor: '#1E1E2E', // Match dark theme
-        scale: 2 // High resolution
+        backgroundColor: '#1E1E2E', 
+        scale: 1,
+        useCORS: true
       });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: canvas.width > canvas.height ? 'l' : 'p',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      
+      // Use JPEG to prevent massive Out-Of-Memory data URIs
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      
+      // Initialize standard A4 PDF
+      const pdf = new jsPDF('p', 'pt', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      
+      const ratio = pdfWidth / canvasWidth;
+      const scaledHeight = canvasHeight * ratio;
+      
+      let heightLeft = scaledHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, scaledHeight);
+      heightLeft -= pdfHeight;
+      
+      // Add new pages until we've covered the whole height
+      while (heightLeft > 0) {
+        position = heightLeft - scaledHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, scaledHeight);
+        heightLeft -= pdfHeight;
+      }
+      
       pdf.save(`latintype_reading_${selectedAuthor}.pdf`);
     } catch (e) {
       console.error("PDF Export failed", e);
-      alert("Failed to export PDF.");
+      alert("Failed to export PDF. The text selection may be too large.");
     }
   };
 
