@@ -217,6 +217,27 @@ export default function ReadMode() {
     }
   };
 
+  const handleUndo = () => {
+    if (strokesRef.current.length > 0) {
+      strokesRef.current.pop();
+      redrawCanvas();
+    }
+  };
+
+  // Keyboard shortcut for Undo
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (isAnnotating) {
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAnnotating]);
+
   const exportPDF = async () => {
     const container = canvasContainerRef.current;
     if (!container) return;
@@ -545,6 +566,8 @@ export default function ReadMode() {
       {isAnnotating && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-mt-bg/95 backdrop-blur-md border border-mt-sub/20 rounded-2xl px-6 py-4 shadow-2xl flex flex-wrap items-center gap-6 animate-fade-in pointer-events-auto">
           <div className="flex gap-2 bg-mt-sub-alt/50 p-1 rounded-lg">
+            <button onClick={handleUndo} className="p-2 rounded text-mt-sub hover:text-mt-text transition-colors" title="Undo (Ctrl+Z)">↩️</button>
+            <div className="w-px bg-mt-sub/20 my-1"></div>
             <button onClick={() => setAnnotateTool('highlighter')} className={`p-2 rounded transition-colors ${annotateTool === 'highlighter' ? 'bg-mt-bg shadow text-mt-main' : 'text-mt-sub hover:text-mt-text'}`} title="Highlighter">🖌️</button>
             <button onClick={() => setAnnotateTool('pen')} className={`p-2 rounded transition-colors ${annotateTool === 'pen' ? 'bg-mt-bg shadow text-mt-main' : 'text-mt-sub hover:text-mt-text'}`} title="Pen">🖊️</button>
             <button onClick={() => setAnnotateTool('eraser')} className={`p-2 rounded transition-colors ${annotateTool === 'eraser' ? 'bg-mt-bg shadow text-mt-main' : 'text-mt-sub hover:text-mt-text'}`} title="Eraser">🧽</button>
