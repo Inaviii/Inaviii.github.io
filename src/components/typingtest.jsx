@@ -1325,7 +1325,7 @@ export default function TypingTest() {
             className="fixed bottom-4 left-4 z-40 bg-mt-bg/80 backdrop-blur-md border border-mt-sub/20 rounded-2xl px-4 py-3 flex flex-col gap-2 shadow-[0_4px_15px_rgba(0,0,0,0.2)] hover:bg-mt-sub-alt transition-colors cursor-pointer group"
           >
             <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full bg-mt-main flex-shrink-0 ${DECORATIONS.find(d => d.id === (userProfile.profileDecoration || 'none'))?.class.replace('ring-4', 'ring-[2px]') || ''}`}></div>
+              <div className={`w-3 h-3 rounded-full bg-mt-main flex-shrink-0 ${DECORATIONS.find(d => d.id === (userProfile.profileDecoration || 'none'))?.class?.replace('ring-4', 'ring-[2px]') || ''}`}></div>
               <span className="font-bold text-mt-text text-sm tracking-wide group-hover:text-mt-main transition-colors">{userProfile.name}</span>
               <span className="text-mt-main font-mono text-sm">{userProfile.elo}</span>
               <span className="text-mt-sub text-xs font-mono border-l border-mt-sub/30 pl-3">{userProfile.wins}W - {userProfile.losses}L</span>
