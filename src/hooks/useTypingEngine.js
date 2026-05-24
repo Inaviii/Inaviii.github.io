@@ -6,8 +6,23 @@ function typingReducer(state, action) {
   switch (action.type) {
     case 'START_ENGINE':
       return { ...state, startTime: Date.now() };
-    case 'SET_INPUT':
-      return { ...state, currentInput: action.payload };
+    case 'SET_INPUT': {
+      const { lines, wordIndex, startTime } = state;
+      const flatWords = lines.flatMap(l => l.words);
+      const activeWordObj = flatWords.find(w => w.globalIdx === wordIndex);
+      
+      let nextState = { ...state, currentInput: action.payload };
+      if (!startTime && action.payload.length > 0) nextState.startTime = Date.now();
+
+      if (activeWordObj) {
+        const expectedWord = activeWordObj.word;
+        const normalizedExpected = expectedWord.split('').map(normalizeChar).join('');
+        if (wordIndex === flatWords.length - 1 && nextState.currentInput === normalizedExpected) {
+          nextState.isFinished = true;
+        }
+      }
+      return nextState;
+    }
     case 'SPACE_PRESSED': {
       const { lines, currentInput, wordIndex, typedHistory } = state;
       if (currentInput.trim().length === 0) return state;
@@ -38,21 +53,8 @@ function typingReducer(state, action) {
       return state;
     }
     case 'CHAR_TYPED': {
-      const { lines, currentInput, wordIndex, startTime } = state;
-      const flatWords = lines.flatMap(l => l.words);
-      const activeWordObj = flatWords.find(w => w.globalIdx === wordIndex);
-      
-      let nextState = { ...state, currentInput: currentInput + action.payload };
-      if (!startTime) nextState.startTime = Date.now();
-
-      if (activeWordObj) {
-        const expectedWord = activeWordObj.word;
-        const normalizedExpected = expectedWord.split('').map(normalizeChar).join('');
-        if (wordIndex === flatWords.length - 1 && nextState.currentInput === normalizedExpected) {
-          nextState.isFinished = true;
-        }
-      }
-      return nextState;
+      if (!state.startTime) return { ...state, startTime: Date.now() };
+      return state;
     }
     case 'COMPUTE_STATS': {
       const { timeElapsedMs } = action.payload;
