@@ -3,24 +3,8 @@ import { collection, addDoc, query, where, getDocs, updateDoc, onSnapshot, doc, 
 import { db } from '../firebase';
 import DictionaryPopup from './DictionaryPopup';
 import ProfilePopup, { DECORATIONS, BADGES } from './ProfilePopup';
-
-const backgrounds = [
-  { name: "None (Solid Dark)", url: "none" },
-  { name: "Marble", url: "/bg-statue.jpg" },
-  { name: "Colliseum", url: "/bg-forum.jpg" },
-  { name: "Papyrus", url: "/bg-manuscript.jpg" },
-  { name: "Library", url: "/bg-library.jpg" }
-];
-
-const fonts = [
-  { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
-  { name: "Courier Prime", value: '"Courier Prime", monospace' },
-  { name: "Syne Mono", value: '"Syne Mono", monospace' },
-  { name: "Courier New", value: '"Courier New", Courier, monospace' },
-  { name: "Consolas", value: 'Consolas, monospace' },
-  { name: "Lucida Console", value: '"Lucida Console", Monaco, monospace' },
-  { name: "OpenDyslexic", value: '"OpenDyslexic", sans-serif' },
-];
+import { useSettings } from '../contexts/SettingsContext';
+import { useTypingEngine } from '../hooks/useTypingEngine';
 
 const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -112,35 +96,22 @@ export default function TypingTest({ ghostData, setGhostData }) {
   const [loadedPieceId, setLoadedPieceId] = useState(null);
   const [lineRange, setLineRange] = useState({ start: 1, end: 1, max: 1 });
 
-  // engine state
-  const [lines, setLines] = useState([]);
-  const [wordIndex, setWordIndex] = useState(0);
-  const [currentInput, setCurrentInput] = useState('');
-  const [typedHistory, setTypedHistory] = useState([]);
-  const [isFinished, setIsFinished] = useState(false);
+  // engine state via custom hook
+  const { state: engineState, dispatch: engineDispatch, resetEngine, handleKeyDown: rawHandleKeyDown } = useTypingEngine([]);
+  const { lines, wordIndex, currentInput, typedHistory, startTime, isFinished, stats } = engineState;
   const [xpAwarded, setXpAwarded] = useState(false);
 
-  // options & analytics state
-  const [bgImage, setBgImage] = useState(() => localStorage.getItem('bgImage') || backgrounds[1].url);
-  const [bgOpacity, setBgOpacity] = useState(() => { const v = localStorage.getItem('bgOpacity'); return v !== null ? parseFloat(v) : 0.15; });
-  const [volume, setVolume] = useState(() => { const v = localStorage.getItem('volume'); return v !== null ? parseFloat(v) : 0.2; });
-  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('fontFamily') || fonts.find(f => f.name === 'Syne Mono')?.value || fonts[0].value);
-  const [fontSize, setFontSize] = useState(() => { const v = localStorage.getItem('fontSize'); return v !== null ? parseInt(v) : 36; });
-  const [showScansion, setShowScansion] = useState(() => { const v = localStorage.getItem('showScansion'); return v !== null ? v === 'true' : true; });
-  const [cursorStyle, setCursorStyle] = useState(() => localStorage.getItem('cursorStyle') || 'line');
-
-  // save options to local storage whenever they change.
-  useEffect(() => {
-    localStorage.setItem('bgImage', bgImage);
-    localStorage.setItem('bgOpacity', bgOpacity);
-    localStorage.setItem('volume', volume);
-    localStorage.setItem('fontFamily', fontFamily);
-    localStorage.setItem('fontSize', fontSize);
-    localStorage.setItem('showScansion', showScansion);
-    localStorage.setItem('cursorStyle', cursorStyle);
-  }, [bgImage, bgOpacity, volume, fontFamily, fontSize, showScansion, cursorStyle]);
-  const [startTime, setStartTime] = useState(null);
-  const [stats, setStats] = useState({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
+  // settings via context
+  const {
+    bgImage, setBgImage,
+    bgOpacity, setBgOpacity,
+    volume, setVolume,
+    fontFamily, setFontFamily,
+    fontSize, setFontSize,
+    showScansion, setShowScansion,
+    cursorStyle, setCursorStyle,
+    backgrounds, fonts
+  } = useSettings();
   const [ghostProgress, setGhostProgress] = useState(0);
 
   // leaderboard state
@@ -650,13 +621,8 @@ export default function TypingTest({ ghostData, setGhostData }) {
   };
 
   // reset engine helper
-  const resetTest = () => {
-    setWordIndex(0);
-    setCurrentInput('');
-    setTypedHistory([]);
-    setStartTime(null);
-    setStats({ wpm: 0, acc: 100, totalKeys: 0, correctKeys: 0 });
-    setIsFinished(false);
+  const resetTest = (newLines = lines) => {
+    resetEngine(newLines);
     setXpAwarded(false);
     setTimeRemaining(testMode === 'time' ? timeLimit : null);
     setScoreSaved(false);
@@ -717,8 +683,7 @@ export default function TypingTest({ ghostData, setGhostData }) {
       return { words, scansion: rawScansion ? rawScansion[lIdx] : null };
     });
 
-    setLines(parsedLines);
-    resetTest();
+    resetTest(parsedLines);
   }, [selectedPieceId, activeAuthorData, isFetchingAuthor, testMode, loadedPieceId, lineRange.start, lineRange.end]);
 
   // live timer
@@ -726,36 +691,29 @@ export default function TypingTest({ ghostData, setGhostData }) {
     if (!startTime || isFinished) return;
     const interval = setInterval(() => {
       const timeElapsedMs = Date.now() - startTime;
-      const timeElapsedMin = timeElapsedMs / 60000;
+      engineDispatch({ type: 'COMPUTE_STATS', payload: { timeElapsedMs } });
 
-      setStats(prev => {
-        const newWpm = Math.max(0, Math.round((prev.correctKeys / 5) / timeElapsedMin));
-        const newAcc = prev.totalKeys > 0 ? Math.round((prev.correctKeys / prev.totalKeys) * 100) : 100;
-
-        if (testMode === 'multiplayer' && matchId && playerId) {
-          const score = (newWpm * (newAcc / 100)) * (timeElapsedMs / 1000);
-          setMyScore(score);
-          updateDoc(doc(db, 'matches', matchId), {
-            [`players.${playerId}.score`]: score,
-            [`players.${playerId}.wpm`]: newWpm,
-            [`players.${playerId}.acc`]: newAcc
-          }).catch(e => console.error(e));
-        }
-
-        return { ...prev, wpm: newWpm, acc: newAcc };
-      });
+      if (testMode === 'multiplayer' && matchId && playerId && stats.wpm > 0) {
+        const score = (stats.wpm * (stats.acc / 100)) * (timeElapsedMs / 1000);
+        setMyScore(score);
+        updateDoc(doc(db, 'matches', matchId), {
+          [`players.${playerId}.score`]: score,
+          [`players.${playerId}.wpm`]: stats.wpm,
+          [`players.${playerId}.acc`]: stats.acc
+        }).catch(e => console.error(e));
+      }
 
       if (testMode === 'time' || testMode === 'multiplayer' || testMode === 'daily') {
         const tLimit = testMode === 'multiplayer' ? 30 : timeLimit;
         const remaining = Math.max(0, tLimit - Math.floor(timeElapsedMs / 1000));
         setTimeRemaining(remaining);
         if (remaining <= 0) {
-          setIsFinished(true);
+          engineDispatch({ type: 'FINISH' });
         }
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [startTime, isFinished, testMode, timeLimit, matchId, playerId]);
+  }, [startTime, isFinished, testMode, timeLimit, matchId, playerId, stats.wpm, stats.acc]);
 
   // live ghost animation frame loop
   useEffect(() => {
@@ -791,7 +749,7 @@ export default function TypingTest({ ghostData, setGhostData }) {
         const authors = Object.keys(libraryIndex);
         const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
         const works = Object.keys(libraryIndex[randomAuthor]);
-        const randomWork = works[Math.floor(Math.random() * randomWork.length)];
+        const randomWork = works[Math.floor(Math.random() * works.length)];
         const randomPieces = libraryIndex[randomAuthor][randomWork];
         const randomPiece = randomPieces[Math.floor(Math.random() * randomPieces.length)];
         setSelectedAuthor(randomAuthor);
@@ -802,51 +760,12 @@ export default function TypingTest({ ghostData, setGhostData }) {
       return;
     }
 
-    if (isFinished || isFetchingAuthor || isAppLoading || multiplayerCountdown !== null || isQueueing) return;
-
-    if (e.key.length === 1 || e.key === 'Backspace' || e.key === ' ') playClickSound();
-
-    if (e.key === ' ') {
-      e.preventDefault();
-      if (currentInput.trim().length > 0) {
-        const flatWords = lines.flatMap(l => l.words);
-        if (wordIndex === flatWords.length - 1) setIsFinished(true);
-
-        setTypedHistory([...typedHistory, currentInput.trim()]);
-        setWordIndex((prev) => prev + 1);
-        setCurrentInput('');
-      }
-    } else if (e.key === 'Backspace') {
-      if (currentInput === '' && wordIndex > 0) {
-        e.preventDefault();
-        const newHistory = [...typedHistory];
-        const previousInput = newHistory.pop();
-        setTypedHistory(newHistory);
-        setWordIndex((prev) => prev - 1);
-        setCurrentInput(previousInput);
-      }
-    } else if (e.key.length === 1) {
-      if (!startTime) setStartTime(Date.now());
-
-      const flatWords = lines.flatMap(l => l.words);
-      const activeWordObj = flatWords.find(w => w.globalIdx === wordIndex);
-
-      if (activeWordObj) {
-        const expectedWord = activeWordObj.word;
-        const normalizedExpected = expectedWord.split('').map(normalizeChar).join('');
-        const expectedChar = normalizeChar(expectedWord[currentInput.length] || '');
-        const isCorrect = e.key === expectedChar;
-        const nextInput = currentInput + e.key;
-
-        setStats(prev => ({
-          ...prev,
-          totalKeys: prev.totalKeys + 1,
-          correctKeys: prev.correctKeys + (isCorrect ? 1 : 0)
-        }));
-
-        if (wordIndex === flatWords.length - 1 && nextInput === normalizedExpected) setIsFinished(true);
-      }
-    }
+    rawHandleKeyDown(e, {
+      isBlocked: isFinished || isFetchingAuthor || isAppLoading || multiplayerCountdown !== null || isQueueing,
+      onChar: () => playClickSound(),
+      onSpace: () => playClickSound(),
+      onBackspace: () => playClickSound()
+    });
   };
 
   const focusInput = (e) => {

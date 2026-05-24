@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DictionaryPopup from './DictionaryPopup';
 import { lookupWord } from '../lib/DictionaryService';
-
-const fonts = [
-  { name: "Cutive Mono", value: '"Cutive Mono", monospace' },
-  { name: "Courier Prime", value: '"Courier Prime", monospace' },
-  { name: "Syne Mono", value: '"Syne Mono", monospace' },
-  { name: "Courier New", value: '"Courier New", Courier, monospace' },
-  { name: "Consolas", value: 'Consolas, monospace' },
-  { name: "Lucida Console", value: '"Lucida Console", Monaco, monospace' },
-  { name: "OpenDyslexic", value: '"OpenDyslexic", sans-serif' },
-];
+import { useSettings } from '../contexts/SettingsContext';
 
 const normalizeChar = (char) => char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -78,11 +69,14 @@ export default function ReadMode() {
   const textContainerRef = useRef(null);
 
   // styling
-  const [bgImage, setBgImage] = useState(() => localStorage.getItem('bgImage') || 'none');
-  const [bgOpacity, setBgOpacity] = useState(() => parseFloat(localStorage.getItem('bgOpacity')) || 1);
-  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('fontFamily') || '"Cutive Mono", monospace');
-  const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('fontSize')) || 24);
-  const [showScansion, setShowScansion] = useState(() => localStorage.getItem('showScansion') === 'true');
+  const {
+    bgImage, setBgImage,
+    bgOpacity, setBgOpacity,
+    fontFamily, setFontFamily,
+    fontSize, setFontSize,
+    showScansion, setShowScansion,
+    backgrounds, fonts
+  } = useSettings();
 
   // syntax highlighting
   const [syntaxMode, setSyntaxMode] = useState(false);
@@ -103,9 +97,7 @@ export default function ReadMode() {
   const strokesRef = useRef([]);
   const currentStrokeRef = useRef(null);
 
-  useEffect(() => {
-    localStorage.setItem('showScansion', showScansion);
-  }, [showScansion]);
+
 
   // batch fetch syntax for all visible words
   useEffect(() => {

@@ -69,19 +69,14 @@ export default function ProfilePopup({ userProfile, isCurrentUser, cursorStyle, 
         try {
           const q = query(
             collection(db, 'scores'),
-            where('name', '==', userProfile.name)
+            where('name', '==', userProfile.name),
+            orderBy('timestamp', 'desc'),
+            limit(10)
           );
           const snap = await getDocs(q);
-          let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           
-          // Sort client-side to avoid Firebase composite index requirement
-          docs.sort((a, b) => {
-            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.date);
-            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.date);
-            return dateB - dateA;
-          });
-          
-          setHistory(docs.slice(0, 10));
+          setHistory(docs);
         } catch (e) {
           console.error("Failed to fetch history", e);
         } finally {
