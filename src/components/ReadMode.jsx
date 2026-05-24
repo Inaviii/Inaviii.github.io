@@ -326,15 +326,26 @@ export default function ReadMode() {
     texContent += `\\usepackage[margin=1in]{geometry}\n`;
     texContent += `\\usepackage{setspace}\n\\onehalfspacing\n\n`;
 
+    const posToHex = {
+      'V': '#f87171',
+      'N': '#60a5fa',
+      'ADJ': '#4ade80',
+      'ADV': '#facc15',
+      'PRON': '#c084fc',
+      'PREP': '#9ca3af',
+      'CONJ': '#9ca3af'
+    };
+
     const usedColors = new Set();
     const cleanWordToColor = {};
 
     lines.forEach(line => {
       line.words.forEach(w => {
         const clean = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
-        if (syntaxCache[clean]) {
-          usedColors.add(syntaxCache[clean].brush.color);
-          cleanWordToColor[clean] = syntaxCache[clean].brush.color;
+        const pos = syntaxCache[clean];
+        if (pos && pos !== 'UNKNOWN' && posToHex[pos]) {
+          usedColors.add(posToHex[pos]);
+          cleanWordToColor[clean] = posToHex[pos];
         }
       });
     });
