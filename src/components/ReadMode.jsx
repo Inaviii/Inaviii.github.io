@@ -317,6 +317,67 @@ export default function ReadMode() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAnnotating]);
 
+  const exportLaTeX = () => {
+    let texContent = `\\documentclass[12pt,a4paper]{article}\n`;
+    texContent += `\\usepackage[utf8]{inputenc}\n`;
+    texContent += `\\usepackage[T1]{fontenc}\n`;
+    texContent += `\\usepackage{lmodern}\n`;
+    texContent += `\\usepackage{xcolor}\n`;
+    texContent += `\\usepackage[margin=1in]{geometry}\n`;
+    texContent += `\\usepackage{setspace}\n\\onehalfspacing\n\n`;
+
+    const usedColors = new Set();
+    const cleanWordToColor = {};
+
+    lines.forEach(line => {
+      line.words.forEach(w => {
+        const clean = w.word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
+        if (syntaxCache[clean]) {
+          usedColors.add(syntaxCache[clean].brush.color);
+          cleanWordToColor[clean] = syntaxCache[clean].brush.color;
+        }
+      });
+    });
+
+    const colorMap = {};
+    let colorIdx = 1;
+    usedColors.forEach(hex => {
+      const colorName = `syntaxColor${colorIdx++}`;
+      colorMap[hex] = colorName;
+      const cleanHex = hex.replace('#', '');
+      texContent += `\\definecolor{${colorName}}{HTML}{${cleanHex}}\n`;
+    });
+
+    texContent += `\n\\title{${selectedAuthor} - ${selectedWork}}\n`;
+    texContent += `\\date{}\n`;
+    texContent += `\\begin{document}\n`;
+    texContent += `\\maketitle\n\n`;
+
+    lines.forEach(line => {
+      let lineTex = "";
+      line.words.forEach(w => {
+        const clean = w.word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
+        let wordTex = w.word;
+        if (cleanWordToColor[clean]) {
+          const cName = colorMap[cleanWordToColor[clean]];
+          wordTex = `\\textcolor{${cName}}{${w.word}}`;
+        }
+        lineTex += wordTex + " ";
+      });
+      texContent += lineTex.trim() + ` \\\\\n`;
+    });
+
+    texContent += `\n\\end{document}\n`;
+
+    const blob = new Blob([texContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `latintype_annotated_${selectedAuthor}_${selectedWork}.tex`.replace(/\s+/g, '_');
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const exportPDF = async () => {
     const container = canvasContainerRef.current;
     if (!container) return;
@@ -328,15 +389,14 @@ export default function ReadMode() {
       const jsPDFModule = await import('jspdf');
       const jsPDF = jsPDFModule.jsPDF ? jsPDFModule.jsPDF : jsPDFModule.default;
 
-      // Use a scale of 1 to prevent the internal canvas from exceeding browser size limits on long texts
       const canvas = await html2canvas(container, {
         backgroundColor: '#FFFFFF', 
         scale: 1,
         useCORS: true,
         onclone: (documentClone) => {
-          // Inject print-specific styles to force black text and transparent containers
           const style = documentClone.createElement('style');
           style.innerHTML = `
+            @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville&display=swap');
             .text-mt-text { color: #000000 !important; }
             .text-mt-sub { color: #666666 !important; }
             .text-mt-main { color: #000000 !important; }
@@ -346,15 +406,23 @@ export default function ReadMode() {
               box-shadow: none !important;
               border: none !important;
             }
+            .canvas-container {
+              font-family: 'Libre Baskerville', serif !important;
+              text-align: justify !important;
+              line-height: 1.8 !important;
+              padding: 40px !important;
+              max-width: 800px !important;
+              margin: 0 auto !important;
+            }
           `;
           documentClone.head.appendChild(style);
+          const exportTarget = documentClone.querySelector('[data-export-target="true"]');
+          if (exportTarget) exportTarget.classList.add('canvas-container');
         }
       });
       
-      // Use JPEG to prevent massive Out-Of-Memory data URIs
       const imgData = canvas.toDataURL('image/jpeg', 0.9);
       
-      // Initialize standard A4 PDF
       const pdf = new jsPDF('p', 'pt', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -371,7 +439,6 @@ export default function ReadMode() {
       pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, scaledHeight);
       heightLeft -= pdfHeight;
       
-      // Add new pages until we've covered the whole height
       while (heightLeft > 0) {
         position = heightLeft - scaledHeight;
         pdf.addPage();
@@ -636,7 +703,7 @@ export default function ReadMode() {
         ) : (
           <div ref={textContainerRef} className={`relative overflow-y-auto scroll-smooth w-full h-full p-8 sm:p-12 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-mt-sub/20 [&::-webkit-scrollbar-thumb]:rounded-full ${isAnnotating ? 'cursor-crosshair' : ''}`}>
             
-            <div className="relative w-full" ref={canvasContainerRef}>
+            <div className="relative w-full" ref={canvasContainerRef} data-export-target="true">
               
               <canvas
                 ref={canvasRef}
@@ -752,6 +819,9 @@ export default function ReadMode() {
 
           <button onClick={handleClearAnnotations} className="text-mt-error hover:text-red-400 font-bold text-xs uppercase tracking-widest px-2 transition-colors">Clear</button>
           
+          <button onClick={exportLaTeX} className="bg-mt-sub-alt text-mt-text hover:bg-mt-main hover:text-mt-bg font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-lg transition-colors shadow-lg flex items-center gap-2">
+            <span>📜</span> Save LaTeX
+          </button>
           <button onClick={exportPDF} className="bg-mt-main text-mt-bg hover:bg-mt-text font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-lg transition-colors shadow-lg flex items-center gap-2">
             <span>💾</span> Save PDF
           </button>
