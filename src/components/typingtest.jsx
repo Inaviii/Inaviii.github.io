@@ -1185,7 +1185,7 @@ export default function TypingTest({ ghostData, setGhostData }) {
           type="text"
           className="opacity-0 absolute w-0 h-0"
           value={currentInput}
-          onChange={(e) => setCurrentInput(e.target.value)}
+          onChange={(e) => engineDispatch({ type: 'SET_INPUT', payload: e.target.value })}
           onKeyDown={handleKeyDown}
           autoFocus
         />
