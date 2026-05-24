@@ -331,7 +331,7 @@ export default function ReadMode() {
 
     lines.forEach(line => {
       line.words.forEach(w => {
-        const clean = w.word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
+        const clean = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
         if (syntaxCache[clean]) {
           usedColors.add(syntaxCache[clean].brush.color);
           cleanWordToColor[clean] = syntaxCache[clean].brush.color;
@@ -356,11 +356,11 @@ export default function ReadMode() {
     lines.forEach(line => {
       let lineTex = "";
       line.words.forEach(w => {
-        const clean = w.word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
-        let wordTex = w.word;
+        const clean = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
+        let wordTex = w;
         if (cleanWordToColor[clean]) {
           const cName = colorMap[cleanWordToColor[clean]];
-          wordTex = `\\textcolor{${cName}}{${w.word}}`;
+          wordTex = `\\textcolor{${cName}}{${w}}`;
         }
         lineTex += wordTex + " ";
       });
