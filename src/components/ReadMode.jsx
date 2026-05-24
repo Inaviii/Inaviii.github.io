@@ -323,8 +323,12 @@ export default function ReadMode() {
     texContent += `\\usepackage[T1]{fontenc}\n`;
     texContent += `\\usepackage{lmodern}\n`;
     texContent += `\\usepackage{xcolor}\n`;
-    texContent += `\\usepackage[margin=1in]{geometry}\n`;
-    texContent += `\\usepackage{setspace}\n\\onehalfspacing\n\n`;
+    texContent += `\\usepackage[margin=1.5in]{geometry}\n`;
+    texContent += `\\usepackage{setspace}\n\\onehalfspacing\n`;
+    texContent += `\\definecolor{mtbg}{HTML}{323437}\n`;
+    texContent += `\\definecolor{mttext}{HTML}{d1d0c5}\n`;
+    texContent += `\\pagecolor{mtbg}\n`;
+    texContent += `\\color{mttext}\n\n`;
 
     const posToHex = {
       'V': '#f87171',
@@ -363,21 +367,24 @@ export default function ReadMode() {
     texContent += `\\date{}\n`;
     texContent += `\\begin{document}\n`;
     texContent += `\\maketitle\n\n`;
+    texContent += `\\begin{flushleft}\n`;
 
     lines.forEach(line => {
       let lineTex = "";
       line.words.forEach(w => {
         const clean = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, '').toLowerCase();
-        let wordTex = w;
-        if (cleanWordToColor[clean]) {
-          const cName = colorMap[cleanWordToColor[clean]];
-          wordTex = `\\textcolor{${cName}}{${w}}`;
+        const pos = syntaxCache[clean];
+        if (pos && pos !== 'UNKNOWN' && posToHex[pos]) {
+          const cName = colorMap[posToHex[pos]];
+          lineTex += `\\textcolor{${cName}}{${w}} `;
+        } else {
+          lineTex += `${w} `;
         }
-        lineTex += wordTex + " ";
       });
       texContent += lineTex.trim() + ` \\\\\n`;
     });
 
+    texContent += `\\end{flushleft}\n`;
     texContent += `\n\\end{document}\n`;
 
     const blob = new Blob([texContent], { type: 'text/plain;charset=utf-8' });
@@ -401,16 +408,13 @@ export default function ReadMode() {
       const jsPDF = jsPDFModule.jsPDF ? jsPDFModule.jsPDF : jsPDFModule.default;
 
       const canvas = await html2canvas(container, {
-        backgroundColor: '#FFFFFF', 
+        backgroundColor: '#323437', 
         scale: 1,
         useCORS: true,
         onclone: (documentClone) => {
           const style = documentClone.createElement('style');
           style.innerHTML = `
             @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville&display=swap');
-            .text-mt-text { color: #000000 !important; }
-            .text-mt-sub { color: #666666 !important; }
-            .text-mt-main { color: #000000 !important; }
             .bg-mt-bg\\/80 { 
               background-color: transparent !important; 
               backdrop-filter: none !important;
@@ -419,11 +423,11 @@ export default function ReadMode() {
             }
             .canvas-container {
               font-family: 'Libre Baskerville', serif !important;
-              text-align: justify !important;
+              text-align: left !important;
               line-height: 1.8 !important;
-              padding: 40px !important;
-              max-width: 800px !important;
-              margin: 0 auto !important;
+              padding: 60px !important;
+              max-width: none !important;
+              margin: 0 !important;
             }
           `;
           documentClone.head.appendChild(style);
